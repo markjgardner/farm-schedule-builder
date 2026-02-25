@@ -16,8 +16,10 @@ param tags object = {}
 @description('Principal ID of the Function App managed identity for RBAC assignments. Leave empty to skip.')
 param functionAppPrincipalId string = ''
 
+var keyVaultName = take('kv-${baseName}', 24)
+
 resource keyVault'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
-  name: 'kv-${baseName}'
+  name: keyVaultName
   location: location
   tags: tags
   properties: {
