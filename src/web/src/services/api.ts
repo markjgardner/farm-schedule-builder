@@ -1,0 +1,56 @@
+import type { Schedule, Worker } from '../types';
+
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  });
+
+  if (res.status === 401) {
+    window.location.href = '/.auth/login/aad?post_login_redirect_uri=/';
+    throw new Error('Unauthorized');
+  }
+
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+export function getAvailability(
+  windowStart: string,
+): Promise<{ date: string; status: string }[]> {
+  return apiFetch<{ date: string; status: string }[]>(
+    `/api/availability/${encodeURIComponent(windowStart)}`,
+  );
+}
+
+export function saveAvailability(
+  windowStart: string,
+  items: { date: string; status: string }[],
+): Promise<void> {
+  return apiFetch(`/api/availability/${encodeURIComponent(windowStart)}`, {
+    method: 'PUT',
+    body: JSON.stringify(items),
+  });
+}
+
+export function getCurrentSchedule(
+  windowStart: string,
+): Promise<Schedule | null> {
+  return apiFetch<Schedule | null>(
+    `/api/availability/${encodeURIComponent(windowStart)}/all`,
+  );
+}
+
+export function getWorkers(): Promise<Worker[]> {
+  return apiFetch<Worker[]>('/api/workers');
+}
+
+export function registerWorker(): Promise<Worker> {
+  return apiFetch<Worker>('/api/workers', { method: 'POST' });
+}
