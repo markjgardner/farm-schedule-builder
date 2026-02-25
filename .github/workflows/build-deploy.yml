@@ -5,8 +5,6 @@
 #   AZURE_TENANT_ID          — Azure AD tenant ID
 #   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
 #   AZURE_RESOURCE_GROUP     — Target resource group for deployments
-#   AZURE_FUNCTIONAPP_NAME   — Azure Function App name (from Bicep output)
-#   AZURE_STATIC_WEB_APP_TOKEN — SWA deployment token
 
 name: Build and Deploy
 
@@ -131,19 +129,37 @@ jobs:
             --template-file infra/main.bicep \
             --parameters infra/main.bicepparam
 
+      - name: Get SWA deployment token
+        id: swa-token
+        run: |
+          SWA_NAME=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name main \
+            --query properties.outputs.staticWebAppName.value -o tsv)
+          TOKEN=$(az staticwebapp secrets list \
+            --name "$SWA_NAME" \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --query properties.apiKey -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Functions App
         run: |
+          FUNC_NAME=$(az deployment group show \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name main \
+            --query properties.outputs.functionAppName.value -o tsv)
           cd ./publish/functions
           zip -r ../functions.zip .
           az functionapp deployment source config-zip \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name ${{ secrets.AZURE_FUNCTIONAPP_NAME }} \
+            --name "$FUNC_NAME" \
             --src ../functions.zip
 
       - name: Deploy Static Web App
         uses: azure/static-web-apps-deploy@v1
         with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_TOKEN }}
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.token }}
           action: upload
           app_location: ./publish/web
           skip_app_build: true
