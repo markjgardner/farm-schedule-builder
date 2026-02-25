@@ -1,0 +1,150 @@
+# CI/CD pipeline for Farm Schedule Builder
+#
+# Required GitHub Secrets:
+#   AZURE_CLIENT_ID          — Service principal client ID (for OIDC federated credentials)
+#   AZURE_TENANT_ID          — Azure AD tenant ID
+#   AZURE_SUBSCRIPTION_ID    — Azure subscription ID
+#   AZURE_RESOURCE_GROUP     — Target resource group for deployments
+#   AZURE_FUNCTIONAPP_NAME   — Azure Function App name (from Bicep output)
+#   AZURE_STATIC_WEB_APP_TOKEN — SWA deployment token
+
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-test-dotnet:
+    name: Build & Test (.NET)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore FarmScheduler.sln
+
+      - name: Build
+        run: dotnet build FarmScheduler.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test FarmScheduler.sln --no-build --configuration Release --verbosity normal
+
+      - name: Publish Functions app
+        run: dotnet publish src/FarmScheduler.Functions/FarmScheduler.Functions.csproj --configuration Release --output ./publish/functions
+
+      - name: Upload Functions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-app
+          path: ./publish/functions
+
+  build-and-test-web:
+    name: Build & Test (Web)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: src/web
+
+      - name: Build
+        run: npm run build
+        working-directory: src/web
+
+      - name: Test
+        run: npm test -- --run
+        working-directory: src/web
+
+      - name: Upload Web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app
+          path: src/web/dist
+
+  deploy:
+    name: Deploy to Azure
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-and-test-dotnet, build-and-test-web]
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Functions artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-app
+          path: ./publish/functions
+
+      - name: Download Web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-app
+          path: ./publish/web
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Infrastructure (Bicep)
+        run: |
+          az deployment group create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters infra/main.bicepparam
+
+      - name: Deploy Functions App
+        run: |
+          cd ./publish/functions
+          zip -r ../functions.zip .
+          az functionapp deployment source config-zip \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --name ${{ secrets.AZURE_FUNCTIONAPP_NAME }} \
+            --src ../functions.zip
+
+      - name: Deploy Static Web App
+        uses: azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APP_TOKEN }}
+          action: upload
+          app_location: ./publish/web
+          skip_app_build: true
+          skip_api_build: true

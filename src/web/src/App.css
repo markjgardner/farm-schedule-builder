@@ -1,0 +1,333 @@
+/* App Loading */
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-size: 1.2rem;
+  color: #5a6e3a;
+}
+
+/* Login Page */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.login-page h1 {
+  font-size: 2rem;
+  color: #3b5323;
+  margin-bottom: 0.5rem;
+}
+
+.login-subtitle {
+  color: #6b7b5e;
+  margin-bottom: 2rem;
+}
+
+.login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.login-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity 0.2s;
+}
+
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+.login-btn.microsoft {
+  background-color: #0078d4;
+}
+
+.login-btn.google {
+  background-color: #db4437;
+}
+
+.login-btn.facebook {
+  background-color: #4267b2;
+}
+
+/* Layout */
+.layout {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+  border-bottom: 2px solid #c8d6b0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.app-title {
+  font-size: 1.4rem;
+  color: #3b5323;
+  margin: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-name {
+  color: #5a6e3a;
+  font-weight: 500;
+}
+
+.logout-btn {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #8b6914;
+  border-radius: 4px;
+  background: transparent;
+  color: #8b6914;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.logout-btn:hover {
+  background-color: #8b6914;
+  color: #fff;
+}
+
+/* Navigation Tabs */
+.tab-nav {
+  display: flex;
+  gap: 0;
+  margin-top: 1rem;
+  border-bottom: 2px solid #c8d6b0;
+}
+
+.tab-btn {
+  padding: 0.6rem 1.2rem;
+  border: none;
+  background: transparent;
+  color: #6b7b5e;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover {
+  color: #3b5323;
+}
+
+.tab-btn.active {
+  color: #3b5323;
+  border-bottom-color: #5a6e3a;
+}
+
+.content {
+  padding: 1.5rem 0;
+}
+
+/* Availability Grid */
+.availability-grid h2 {
+  color: #3b5323;
+  margin-bottom: 0.25rem;
+}
+
+.window-label {
+  color: #6b7b5e;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.grid-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grid-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: #f5f7f0;
+  border-radius: 6px;
+  gap: 1rem;
+}
+
+.day-label {
+  font-weight: 500;
+  color: #3b5323;
+  min-width: 100px;
+}
+
+.grid-row select {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #c8d6b0;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 0.9rem;
+  flex: 1;
+  max-width: 200px;
+}
+
+.save-btn {
+  margin-top: 1.25rem;
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 6px;
+  background-color: #5a6e3a;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.2s;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: #3b5323;
+}
+
+.save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Toast */
+.toast {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.toast-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.toast-error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Schedule View */
+.schedule-view h2 {
+  color: #3b5323;
+  margin-bottom: 0.25rem;
+}
+
+.schedule-meta {
+  color: #6b7b5e;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.no-schedule {
+  text-align: center;
+  padding: 2rem;
+}
+
+.no-schedule h2 {
+  color: #3b5323;
+}
+
+.no-schedule p {
+  color: #6b7b5e;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+.schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.schedule-table th,
+.schedule-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #c8d6b0;
+}
+
+.schedule-table th {
+  background-color: #5a6e3a;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.schedule-table td.unfilled {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.schedule-table tbody tr:hover {
+  background-color: #f5f7f0;
+}
+
+/* Loading & Error */
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #5a6e3a;
+}
+
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  color: #dc3545;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grid-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grid-row select {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .schedule-table {
+    font-size: 0.8rem;
+  }
+
+  .schedule-table th,
+  .schedule-table td {
+    padding: 0.4rem;
+  }
+}
