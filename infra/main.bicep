@@ -100,6 +100,7 @@ module storageRbac 'modules/storage.bicep' = {
     tags: commonTags
     functionAppPrincipalId: functionApp.outputs.principalId
   }
+  dependsOn: [storage, functionApp]
 }
 
 module serviceBusRbac 'modules/service-bus.bicep' = {
@@ -110,6 +111,7 @@ module serviceBusRbac 'modules/service-bus.bicep' = {
     tags: commonTags
     functionAppPrincipalId: functionApp.outputs.principalId
   }
+  dependsOn: [serviceBus, functionApp]
 }
 
 module keyVaultRbac 'modules/key-vault.bicep' = {
@@ -120,6 +122,7 @@ module keyVaultRbac 'modules/key-vault.bicep' = {
     tags: commonTags
     functionAppPrincipalId: functionApp.outputs.principalId
   }
+  dependsOn: [keyVault, functionApp]
 }
 
 // Static Web App with linked backend to Function App

@@ -99,6 +99,9 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build-and-test-dotnet, build-and-test-web]
     environment: production
+    env:
+      ENVIRONMENT_NAME: dev
+      RESOURCE_NAME_PREFIX: farm
 
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +130,8 @@ jobs:
           az deployment group create \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --template-file infra/main.bicep \
-            --parameters infra/main.bicepparam
+            --parameters infra/main.bicepparam \
+            --parameters environmentName=${{ env.ENVIRONMENT_NAME }} resourceNamePrefix=${{ env.RESOURCE_NAME_PREFIX }}
 
       - name: Get SWA deployment token
         id: swa-token

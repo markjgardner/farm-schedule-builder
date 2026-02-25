@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 @description('Base name used for resource naming.')
+@minLength(1)
 param baseName string
 
 @description('Azure region for deployment.')
