@@ -60,6 +60,7 @@ jobs:
         with:
           name: functions-app
           path: ./publish/functions
+          include-hidden-files: true
 
   build-and-test-web:
     name: Build & Test (Web)
@@ -168,11 +169,13 @@ jobs:
             --name main \
             --query properties.outputs.functionAppName.value -o tsv)
           cd ./publish/functions
-          zip -r ../functions.zip .
-          az functionapp deployment source config-zip \
+          zip -r ../functions.zip . -x '*.git*'
+          az functionapp deploy \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name "$FUNC_NAME" \
-            --src ../functions.zip
+            --src-path ../functions.zip \
+            --type zip \
+            --clean true
 
       - name: Deploy Static Web App
         uses: azure/static-web-apps-deploy@v1
