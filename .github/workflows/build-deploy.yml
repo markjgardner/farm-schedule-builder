@@ -140,10 +140,24 @@ jobs:
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name main \
             --query properties.outputs.staticWebAppName.value -o tsv)
-          TOKEN=$(az staticwebapp secrets list \
-            --name "$SWA_NAME" \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --query properties.apiKey -o tsv)
+          echo "SWA name: $SWA_NAME"
+          if [ -z "$SWA_NAME" ]; then
+            echo "::error::Failed to retrieve Static Web App name from deployment outputs"
+            exit 1
+          fi
+          # Retry token retrieval — SWA may need a moment after provisioning
+          for i in 1 2 3; do
+            TOKEN=$(az staticwebapp secrets list \
+              --name "$SWA_NAME" \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --query "properties.apiKey" -o tsv 2>&1) && break
+            echo "Attempt $i failed: $TOKEN"
+            sleep 30
+          done
+          if [ -z "$TOKEN" ] || echo "$TOKEN" | grep -qi "error"; then
+            echo "::error::Failed to retrieve SWA deployment token after 3 attempts"
+            exit 1
+          fi
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 

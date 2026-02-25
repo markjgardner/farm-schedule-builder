@@ -141,6 +141,9 @@ module staticWebApp 'modules/static-web-app.bicep' = {
 @description('Static Web App default hostname.')
 output staticWebAppHostname string = staticWebApp.outputs.defaultHostname
 
+@description('Static Web App resource name.')
+output staticWebAppName string = staticWebApp.outputs.staticWebAppName
+
 @description('Function App name.')
 output functionAppName string = functionApp.outputs.functionAppName
 
