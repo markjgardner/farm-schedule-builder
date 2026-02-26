@@ -21,6 +21,24 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// Returns the Worker if registered, null if not (403)
+export async function checkRegistration(): Promise<Worker | null> {
+  const res = await fetch('/api/me', {
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (res.status === 401) {
+    window.location.href = '/.auth/login/aad?post_login_redirect_uri=/';
+    throw new Error('Unauthorized');
+  }
+  if (res.status === 403) {
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json() as Promise<Worker>;
+}
+
 export function getAvailability(
   windowStart: string,
 ): Promise<{ date: string; status: string }[]> {
@@ -49,10 +67,6 @@ export function getCurrentSchedule(
 
 export function getWorkers(): Promise<Worker[]> {
   return apiFetch<Worker[]>('/api/workers');
-}
-
-export function registerWorker(): Promise<Worker> {
-  return apiFetch<Worker>('/api/workers', { method: 'POST' });
 }
 
 export function getAdminWorkers(): Promise<Worker[]> {

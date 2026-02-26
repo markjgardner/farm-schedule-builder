@@ -55,61 +55,61 @@ public class WorkerFunctionsTests
     }
 
     [Fact]
-    public async Task RegisterWorker_CreatesWorkerFromAuthHeader()
+    public async Task GetMe_ReturnsWorker_WhenRegistered()
     {
-        _mockRepo.Setup(x => x.GetByIdAsync("user-123")).ReturnsAsync((Worker?)null);
+        var worker = new Worker { Id = "user-123", DisplayName = "Jane Doe", IsActive = true, IsAdmin = false };
+        _mockRepo.Setup(x => x.GetByIdAsync("user-123")).ReturnsAsync(worker);
         var req = CreateRequest(userId: "user-123", userDetails: "Jane Doe");
-        var result = await _functions.RegisterWorker(req);
+        var result = await _functions.GetMe(req);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var worker = okResult.Value.Should().BeOfType<Worker>().Subject;
-        worker.Id.Should().Be("user-123");
-        worker.DisplayName.Should().Be("Jane Doe");
-        worker.IsActive.Should().BeTrue();
-        worker.IsAdmin.Should().BeFalse();
-
-        _mockRepo.Verify(x => x.UpsertAsync(It.Is<Worker>(w =>
-            w.Id == "user-123" && w.DisplayName == "Jane Doe" && w.IsActive && !w.IsAdmin)), Times.Once);
+        var returned = okResult.Value.Should().BeOfType<Worker>().Subject;
+        returned.Id.Should().Be("user-123");
+        returned.DisplayName.Should().Be("Jane Doe");
     }
 
     [Fact]
-    public async Task RegisterWorker_Returns401_WhenNoAuthHeader()
+    public async Task GetMe_Returns401_WhenNoAuthHeader()
     {
         var req = CreateRequest();
-        var result = await _functions.RegisterWorker(req);
+        var result = await _functions.GetMe(req);
 
         result.Should().BeOfType<UnauthorizedResult>();
     }
 
     [Fact]
-    public async Task RegisterWorker_UsesUserIdAsDisplayName_WhenUserDetailsNull()
+    public async Task GetMe_Returns403_WhenUserNotInWorkersTable()
     {
-        _mockRepo.Setup(x => x.GetByIdAsync("user-456")).ReturnsAsync((Worker?)null);
-        var json = JsonSerializer.Serialize(new { userId = "user-456" });
-        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
-        var context = new DefaultHttpContext();
-        context.Request.Headers["x-ms-client-principal"] = base64;
+        _mockRepo.Setup(x => x.GetByIdAsync("unknown-user")).ReturnsAsync((Worker?)null);
+        var req = CreateRequest(userId: "unknown-user", userDetails: "Unknown");
+        var result = await _functions.GetMe(req);
 
-        var result = await _functions.RegisterWorker(context.Request);
-
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var worker = okResult.Value.Should().BeOfType<Worker>().Subject;
-        worker.DisplayName.Should().Be("user-456");
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
     }
 
     [Fact]
-    public async Task RegisterWorker_PreservesIsAdmin_WhenWorkerAlreadyExists()
+    public async Task GetMe_Returns403_WhenWorkerIsInactive()
     {
-        _mockRepo.Setup(x => x.GetByIdAsync("user-789"))
-            .ReturnsAsync(new Worker { Id = "user-789", DisplayName = "Existing", IsAdmin = true });
+        var worker = new Worker { Id = "user-456", DisplayName = "Inactive", IsActive = false };
+        _mockRepo.Setup(x => x.GetByIdAsync("user-456")).ReturnsAsync(worker);
+        var req = CreateRequest(userId: "user-456", userDetails: "Inactive User");
+        var result = await _functions.GetMe(req);
 
-        var req = CreateRequest(userId: "user-789", userDetails: "Existing User");
-        var result = await _functions.RegisterWorker(req);
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public async Task GetMe_ReturnsAdmin_WhenWorkerIsAdmin()
+    {
+        var worker = new Worker { Id = "admin-1", DisplayName = "Admin", IsActive = true, IsAdmin = true };
+        _mockRepo.Setup(x => x.GetByIdAsync("admin-1")).ReturnsAsync(worker);
+        var req = CreateRequest(userId: "admin-1", userDetails: "Admin User");
+        var result = await _functions.GetMe(req);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var worker = okResult.Value.Should().BeOfType<Worker>().Subject;
-        worker.IsAdmin.Should().BeTrue();
-
-        _mockRepo.Verify(x => x.UpsertAsync(It.Is<Worker>(w => w.Id == "user-789" && w.IsAdmin)), Times.Once);
+        var returned = okResult.Value.Should().BeOfType<Worker>().Subject;
+        returned.IsAdmin.Should().BeTrue();
     }
 }
