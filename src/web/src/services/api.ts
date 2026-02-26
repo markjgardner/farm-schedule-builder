@@ -54,3 +54,39 @@ export function getWorkers(): Promise<Worker[]> {
 export function registerWorker(): Promise<Worker> {
   return apiFetch<Worker>('/api/workers', { method: 'POST' });
 }
+
+export function getAdminWorkers(): Promise<Worker[]> {
+  return apiFetch<Worker[]>('/api/admin/workers');
+}
+
+export function addWorker(displayName: string, email: string): Promise<Worker> {
+  return apiFetch<Worker>('/api/admin/workers', {
+    method: 'POST',
+    body: JSON.stringify({ displayName, email }),
+  });
+}
+
+export function deactivateWorker(id: string): Promise<void> {
+  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/deactivate`, {
+    method: 'PUT',
+  });
+}
+
+export function activateWorker(id: string): Promise<void> {
+  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/activate`, {
+    method: 'PUT',
+  });
+}
+
+export function setWorkerAdmin(id: string, isAdmin: boolean): Promise<void> {
+  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/admin`, {
+    method: 'PUT',
+    body: JSON.stringify({ isAdmin }),
+  });
+}
+
+export function deleteWorker(id: string): Promise<void> {
+  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}

@@ -6,14 +6,18 @@ namespace FarmScheduler.Functions.Functions;
 
 public static class AuthHelper
 {
-    public static (string? userId, string? userDetails) ParseClientPrincipal(HttpRequest request)
+    public record ClientPrincipalInfo(string? UserId, string? UserDetails, IReadOnlyList<string> UserRoles);
+
+    private static readonly ClientPrincipalInfo Empty = new(null, null, Array.Empty<string>());
+
+    public static ClientPrincipalInfo ParseClientPrincipal(HttpRequest request)
     {
         if (!request.Headers.TryGetValue("x-ms-client-principal", out var headerValues))
-            return (null, null);
+            return Empty;
 
         var header = headerValues.FirstOrDefault();
         if (string.IsNullOrEmpty(header))
-            return (null, null);
+            return Empty;
 
         try
         {
@@ -25,11 +29,22 @@ public static class AuthHelper
             var userId = root.TryGetProperty("userId", out var uid) ? uid.GetString() : null;
             var userDetails = root.TryGetProperty("userDetails", out var ud) ? ud.GetString() : null;
 
-            return (userId, userDetails);
+            var userRoles = new List<string>();
+            if (root.TryGetProperty("userRoles", out var roles) && roles.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var role in roles.EnumerateArray())
+                {
+                    var roleStr = role.GetString();
+                    if (!string.IsNullOrEmpty(roleStr))
+                        userRoles.Add(roleStr);
+                }
+            }
+
+            return new ClientPrincipalInfo(userId, userDetails, userRoles);
         }
         catch
         {
-            return (null, null);
+            return Empty;
         }
     }
 }

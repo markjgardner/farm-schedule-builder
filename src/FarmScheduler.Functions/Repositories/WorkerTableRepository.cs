@@ -28,6 +28,16 @@ public class WorkerTableRepository : IWorkerRepository
         return workers;
     }
 
+    public async Task<IReadOnlyList<Worker>> GetAllAsync()
+    {
+        var workers = new List<Worker>();
+        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(e => e.PartitionKey == PartitionKey))
+        {
+            workers.Add(MapToWorker(entity));
+        }
+        return workers;
+    }
+
     public async Task<Worker?> GetByIdAsync(string workerId)
     {
         ArgumentException.ThrowIfNullOrEmpty(workerId);
@@ -49,9 +59,16 @@ public class WorkerTableRepository : IWorkerRepository
         {
             { "DisplayName", worker.DisplayName },
             { "Email", worker.Email },
-            { "IsActive", worker.IsActive }
+            { "IsActive", worker.IsActive },
+            { "IsAdmin", worker.IsAdmin }
         };
         await _tableClient.UpsertEntityAsync(entity);
+    }
+
+    public async Task DeleteAsync(string workerId)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(workerId);
+        await _tableClient.DeleteEntityAsync(PartitionKey, workerId);
     }
 
     private static Worker MapToWorker(TableEntity entity) => new()
@@ -59,6 +76,7 @@ public class WorkerTableRepository : IWorkerRepository
         Id = entity.RowKey,
         DisplayName = entity.GetString("DisplayName") ?? string.Empty,
         Email = entity.GetString("Email") ?? string.Empty,
-        IsActive = entity.GetBoolean("IsActive") ?? true
+        IsActive = entity.GetBoolean("IsActive") ?? true,
+        IsAdmin = entity.GetBoolean("IsAdmin") ?? false
     };
 }

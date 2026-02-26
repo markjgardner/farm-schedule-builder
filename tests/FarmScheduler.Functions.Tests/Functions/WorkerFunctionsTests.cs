@@ -57,6 +57,7 @@ public class WorkerFunctionsTests
     [Fact]
     public async Task RegisterWorker_CreatesWorkerFromAuthHeader()
     {
+        _mockRepo.Setup(x => x.GetByIdAsync("user-123")).ReturnsAsync((Worker?)null);
         var req = CreateRequest(userId: "user-123", userDetails: "Jane Doe");
         var result = await _functions.RegisterWorker(req);
 
@@ -65,9 +66,10 @@ public class WorkerFunctionsTests
         worker.Id.Should().Be("user-123");
         worker.DisplayName.Should().Be("Jane Doe");
         worker.IsActive.Should().BeTrue();
+        worker.IsAdmin.Should().BeFalse();
 
         _mockRepo.Verify(x => x.UpsertAsync(It.Is<Worker>(w =>
-            w.Id == "user-123" && w.DisplayName == "Jane Doe" && w.IsActive)), Times.Once);
+            w.Id == "user-123" && w.DisplayName == "Jane Doe" && w.IsActive && !w.IsAdmin)), Times.Once);
     }
 
     [Fact]
@@ -82,6 +84,7 @@ public class WorkerFunctionsTests
     [Fact]
     public async Task RegisterWorker_UsesUserIdAsDisplayName_WhenUserDetailsNull()
     {
+        _mockRepo.Setup(x => x.GetByIdAsync("user-456")).ReturnsAsync((Worker?)null);
         var json = JsonSerializer.Serialize(new { userId = "user-456" });
         var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         var context = new DefaultHttpContext();
@@ -92,5 +95,21 @@ public class WorkerFunctionsTests
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var worker = okResult.Value.Should().BeOfType<Worker>().Subject;
         worker.DisplayName.Should().Be("user-456");
+    }
+
+    [Fact]
+    public async Task RegisterWorker_PreservesIsAdmin_WhenWorkerAlreadyExists()
+    {
+        _mockRepo.Setup(x => x.GetByIdAsync("user-789"))
+            .ReturnsAsync(new Worker { Id = "user-789", DisplayName = "Existing", IsAdmin = true });
+
+        var req = CreateRequest(userId: "user-789", userDetails: "Existing User");
+        var result = await _functions.RegisterWorker(req);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var worker = okResult.Value.Should().BeOfType<Worker>().Subject;
+        worker.IsAdmin.Should().BeTrue();
+
+        _mockRepo.Verify(x => x.UpsertAsync(It.Is<Worker>(w => w.Id == "user-789" && w.IsAdmin)), Times.Once);
     }
 }

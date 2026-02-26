@@ -330,4 +330,147 @@
   .schedule-table td {
     padding: 0.4rem;
   }
+
+  .admin-add-form {
+    flex-direction: column;
+  }
+
+  .admin-table {
+    font-size: 0.8rem;
+  }
+
+  .admin-actions {
+    flex-direction: column;
+  }
+}
+
+/* Admin Page */
+.admin-page h2 {
+  color: #3b5323;
+  margin-bottom: 1rem;
+}
+
+.admin-add-form {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c8d6b0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: #5a6e3a;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #c8d6b0;
+}
+
+.admin-table th {
+  background-color: #5a6e3a;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-table tbody tr:hover {
+  background-color: #f5f7f0;
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge-inactive {
+  background-color: #e2e3e5;
+  color: #6c757d;
+}
+
+.badge-admin {
+  background-color: #cce5ff;
+  color: #004085;
+}
+
+.badge-worker {
+  background-color: #e2e3e5;
+  color: #6c757d;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.admin-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid #c8d6b0;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.admin-btn:hover {
+  opacity: 0.85;
+}
+
+.admin-btn-add {
+  background-color: #5a6e3a;
+  color: #fff;
+  border-color: #5a6e3a;
+  font-weight: 600;
+}
+
+.admin-btn-activate {
+  background-color: #28a745;
+  color: #fff;
+  border-color: #28a745;
+}
+
+.admin-btn-deactivate {
+  background-color: #e0a800;
+  color: #fff;
+  border-color: #e0a800;
+}
+
+.admin-btn-delete {
+  background-color: #dc3545;
+  color: #fff;
+  border-color: #dc3545;
+}
+
+.admin-btn-admin {
+  background-color: #0078d4;
+  color: #fff;
+  border-color: #0078d4;
 }

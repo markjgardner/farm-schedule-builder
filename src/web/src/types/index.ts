@@ -20,6 +20,7 @@ export interface Worker {
   displayName: string;
   email: string;
   isActive: boolean;
+  isAdmin: boolean;
 }
 
 export interface Availability {
