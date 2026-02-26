@@ -74,3 +74,5 @@ Modular: `main.bicep` orchestrates `storage`, `function-app`, `service-bus`, `ke
 - `actions/upload-artifact@v4` excludes hidden files by default — must set `include-hidden-files: true` for the `.azurefunctions` directory required by Flex Consumption
 - Flex Consumption Function Apps require `az functionapp deployment source config-zip` (not `az functionapp deploy` which returns HTTP 415)
 - SWA deployment token is retrieved via `az staticwebapp secrets list` — requires the correct resource name from Bicep outputs
+- The `admin/` route prefix is **reserved** by the Azure Functions runtime — use `manage/` or another prefix for admin endpoints
+- Bicep app settings must match DI config keys exactly: `StorageTableEndpoint` (not `StorageAccountName`), `ServiceBus__fullyQualifiedNamespace` (reads as `ServiceBus:fullyQualifiedNamespace` in .NET config)
