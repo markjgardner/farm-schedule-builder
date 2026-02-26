@@ -30,15 +30,18 @@ public class WorkerFunctions
     public async Task<IActionResult> RegisterWorker(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "workers")] HttpRequest req)
     {
-        var (userId, userDetails) = AuthHelper.ParseClientPrincipal(req);
-        if (string.IsNullOrEmpty(userId))
+        var principal = AuthHelper.ParseClientPrincipal(req);
+        if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
+
+        var existingWorker = await _workerRepository.GetByIdAsync(principal.UserId);
 
         var worker = new Worker
         {
-            Id = userId,
-            DisplayName = userDetails ?? userId,
-            IsActive = true
+            Id = principal.UserId,
+            DisplayName = principal.UserDetails ?? principal.UserId,
+            IsActive = true,
+            IsAdmin = existingWorker?.IsAdmin ?? false
         };
 
         await _workerRepository.UpsertAsync(worker);

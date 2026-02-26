@@ -30,11 +30,11 @@ public class AvailabilityFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "availability/{windowStart}")] HttpRequest req,
         string windowStart)
     {
-        var (userId, _) = AuthHelper.ParseClientPrincipal(req);
-        if (string.IsNullOrEmpty(userId))
+        var principal = AuthHelper.ParseClientPrincipal(req);
+        if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
 
-        var availability = await _availabilityService.GetAvailabilityAsync(windowStart, userId);
+        var availability = await _availabilityService.GetAvailabilityAsync(windowStart, principal.UserId);
         return new OkObjectResult(availability);
     }
 
@@ -43,17 +43,17 @@ public class AvailabilityFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "availability/{windowStart}")] HttpRequest req,
         string windowStart)
     {
-        var (userId, _) = AuthHelper.ParseClientPrincipal(req);
-        if (string.IsNullOrEmpty(userId))
+        var principal = AuthHelper.ParseClientPrincipal(req);
+        if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
 
         var items = await JsonSerializer.DeserializeAsync<List<Availability>>(req.Body, JsonOptions);
         if (items == null || items.Count == 0)
             return new BadRequestObjectResult("Request body must be a non-empty array of availability entries.");
 
-        await _availabilityService.SetAvailabilityAsync(windowStart, userId, items);
+        await _availabilityService.SetAvailabilityAsync(windowStart, principal.UserId, items);
         _logger.LogInformation("Saved {Count} availability entries for worker {WorkerId} window {Window}",
-            items.Count, userId, windowStart);
+            items.Count, principal.UserId, windowStart);
 
         return new OkObjectResult(new { saved = items.Count });
     }
@@ -63,8 +63,8 @@ public class AvailabilityFunctions
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "availability/{windowStart}/all")] HttpRequest req,
         string windowStart)
     {
-        var (userId, _) = AuthHelper.ParseClientPrincipal(req);
-        if (string.IsNullOrEmpty(userId))
+        var principal = AuthHelper.ParseClientPrincipal(req);
+        if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
 
         var availability = await _availabilityService.GetAvailabilityAsync(windowStart);
