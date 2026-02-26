@@ -20,7 +20,7 @@ public class WorkerTableRepository : IWorkerRepository
         var workers = new List<Worker>();
         await foreach (var entity in _tableClient.QueryAsync<TableEntity>(e => e.PartitionKey == PartitionKey))
         {
-            if (entity.GetBoolean("IsActive") == true)
+            if (GetBoolSafe(entity, "IsActive", defaultValue: true))
             {
                 workers.Add(MapToWorker(entity));
             }
@@ -76,7 +76,22 @@ public class WorkerTableRepository : IWorkerRepository
         Id = entity.RowKey,
         DisplayName = entity.GetString("DisplayName") ?? string.Empty,
         Email = entity.GetString("Email") ?? string.Empty,
-        IsActive = entity.GetBoolean("IsActive") ?? true,
-        IsAdmin = entity.GetBoolean("IsAdmin") ?? false
+        IsActive = GetBoolSafe(entity, "IsActive", defaultValue: true),
+        IsAdmin = GetBoolSafe(entity, "IsAdmin", defaultValue: false)
     };
+
+    // Handles both Edm.Boolean and string-typed boolean properties
+    private static bool GetBoolSafe(TableEntity entity, string key, bool defaultValue)
+    {
+        if (!entity.ContainsKey(key))
+            return defaultValue;
+
+        var raw = entity[key];
+        return raw switch
+        {
+            bool b => b,
+            string s => bool.TryParse(s, out var parsed) ? parsed : defaultValue,
+            _ => defaultValue
+        };
+    }
 }
