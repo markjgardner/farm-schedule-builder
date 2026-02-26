@@ -173,7 +173,7 @@ jobs:
           echo "funcName=$FUNC_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Functions App
-        uses: azure/functions-action@v2
+        uses: azure/functions-action@v1
         with:
           app-name: ${{ steps.infra-outputs.outputs.funcName }}
           package: ./publish/functions
