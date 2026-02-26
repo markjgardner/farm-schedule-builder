@@ -26,26 +26,22 @@ public class WorkerFunctions
         return new OkObjectResult(workers);
     }
 
-    [Function("RegisterWorker")]
-    public async Task<IActionResult> RegisterWorker(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "workers")] HttpRequest req)
+    [Function("GetMe")]
+    public async Task<IActionResult> GetMe(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "me")] HttpRequest req)
     {
         var principal = AuthHelper.ParseClientPrincipal(req);
         if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
 
-        var existingWorker = await _workerRepository.GetByIdAsync(principal.UserId);
-
-        var worker = new Worker
+        var worker = await _workerRepository.GetByIdAsync(principal.UserId);
+        if (worker == null || !worker.IsActive)
         {
-            Id = principal.UserId,
-            DisplayName = principal.UserDetails ?? principal.UserId,
-            IsActive = true,
-            IsAdmin = existingWorker?.IsAdmin ?? false
-        };
-
-        await _workerRepository.UpsertAsync(worker);
-        _logger.LogInformation("Registered/updated worker {WorkerId} ({DisplayName})", worker.Id, worker.DisplayName);
+            _logger.LogWarning("Unregistered user attempted access: {UserId} ({UserDetails})",
+                principal.UserId, principal.UserDetails);
+            return new ObjectResult(new { error = "User is not a registered worker. Contact an administrator." })
+                { StatusCode = 403 };
+        }
 
         return new OkObjectResult(worker);
     }
