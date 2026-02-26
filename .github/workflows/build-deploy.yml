@@ -162,22 +162,23 @@ jobs:
           echo "::add-mask::$TOKEN"
           echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy Functions App
+      - name: Get Function App name
+        id: infra-outputs
         run: |
           FUNC_NAME=$(az deployment group show \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name main \
             --query properties.outputs.functionAppName.value -o tsv)
-          cd ./publish/functions
-          zip -r ../functions.zip . -x '*.git*'
-          # Flex Consumption may report "partially successful" when the instance
-          # gets recycled before deployment status can be verified. The package is
-          # still uploaded and functions load on next cold start.
-          az functionapp deployment source config-zip \
-            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-            --name "$FUNC_NAME" \
-            --src ../functions.zip \
-            --timeout 300 || true
+          echo "Function App name: $FUNC_NAME"
+          echo "funcName=$FUNC_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy Functions App
+        uses: azure/functions-action@v2
+        with:
+          app-name: ${{ steps.infra-outputs.outputs.funcName }}
+          package: ./publish/functions
+          sku: flexconsumption
+          remote-build: false
 
       - name: Deploy Static Web App
         uses: azure/static-web-apps-deploy@v1
