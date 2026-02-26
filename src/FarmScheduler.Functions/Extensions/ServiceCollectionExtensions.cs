@@ -23,10 +23,22 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            var storageAccountName = configuration["StorageAccountName"];
-            services.AddSingleton(new TableServiceClient(
-                new Uri($"https://{storageAccountName}.table.core.windows.net"),
-                new DefaultAzureCredential()));
+            // In production the Bicep template sets StorageTableEndpoint to the full
+            // table service URI (e.g. https://<account>.table.core.windows.net/).
+            var storageTableEndpoint = configuration["StorageTableEndpoint"];
+            if (!string.IsNullOrEmpty(storageTableEndpoint))
+            {
+                services.AddSingleton(new TableServiceClient(
+                    new Uri(storageTableEndpoint),
+                    new DefaultAzureCredential()));
+            }
+            else
+            {
+                var storageAccountName = configuration["StorageAccountName"];
+                services.AddSingleton(new TableServiceClient(
+                    new Uri($"https://{storageAccountName}.table.core.windows.net"),
+                    new DefaultAzureCredential()));
+            }
         }
 
         // Service Bus
@@ -37,12 +49,17 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            var serviceBusNamespace = configuration["ServiceBusNamespace"];
+            // In production the Bicep template sets ServiceBus__fullyQualifiedNamespace
+            // which .NET configuration resolves as ServiceBus:fullyQualifiedNamespace.
+            var serviceBusNamespace = configuration["ServiceBus:fullyQualifiedNamespace"]
+                ?? configuration["ServiceBusNamespace"];
             if (!string.IsNullOrEmpty(serviceBusNamespace))
             {
-                services.AddSingleton(new ServiceBusClient(
-                    $"{serviceBusNamespace}.servicebus.windows.net",
-                    new DefaultAzureCredential()));
+                // The value may already be a FQDN (host.servicebus.windows.net) or just a name.
+                var fqdn = serviceBusNamespace.Contains('.')
+                    ? serviceBusNamespace
+                    : $"{serviceBusNamespace}.servicebus.windows.net";
+                services.AddSingleton(new ServiceBusClient(fqdn, new DefaultAzureCredential()));
             }
         }
 
