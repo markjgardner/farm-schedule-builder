@@ -170,12 +170,10 @@ jobs:
             --query properties.outputs.functionAppName.value -o tsv)
           cd ./publish/functions
           zip -r ../functions.zip . -x '*.git*'
-          az functionapp deploy \
+          az functionapp deployment source config-zip \
             --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
             --name "$FUNC_NAME" \
-            --src-path ../functions.zip \
-            --type zip \
-            --clean true
+            --src ../functions.zip
 
       - name: Deploy Static Web App
         uses: azure/static-web-apps-deploy@v1
