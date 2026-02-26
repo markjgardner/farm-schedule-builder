@@ -1,5 +1,9 @@
 # Copilot Instructions
 
+## Branching and PRs
+
+All development work must be done in a separate branch (not `main`). When work is complete, push the branch and open a pull request. Squash-merge is the preferred merge strategy.
+
 ## Build, Test, and Lint
 
 ```bash
