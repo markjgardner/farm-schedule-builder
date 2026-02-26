@@ -47,9 +47,17 @@ public class ScheduleGeneratorFunction
 
     [Function("ScheduleGeneratorHttp")]
     public async Task<IActionResult> RunHttp(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "schedule/generate")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "manage/schedule/generate")] HttpRequest req)
     {
-        _logger.LogInformation("Schedule generator manually triggered");
+        var principal = AuthHelper.ParseClientPrincipal(req);
+        if (string.IsNullOrEmpty(principal.UserId))
+            return new UnauthorizedResult();
+
+        var worker = await _workerRepository.GetByIdAsync(principal.UserId);
+        if (worker == null || !worker.IsAdmin)
+            return new ObjectResult("Forbidden") { StatusCode = 403 };
+
+        _logger.LogInformation("Schedule generation manually triggered by admin {AdminId}", principal.UserId);
         var schedule = await GenerateAndPublishScheduleAsync();
         return new OkObjectResult(schedule);
     }

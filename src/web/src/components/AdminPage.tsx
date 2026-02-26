@@ -7,6 +7,7 @@ import {
   deleteWorker,
   getAdminWorkers,
   setWorkerAdmin,
+  triggerScheduleGeneration,
 } from '../services/api';
 
 export function AdminPage() {
@@ -17,6 +18,7 @@ export function AdminPage() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const loadWorkers = useCallback(async () => {
     try {
@@ -88,6 +90,18 @@ export function AdminPage() {
     }
   };
 
+  const handleGenerateSchedule = async () => {
+    setIsGenerating(true);
+    try {
+      await triggerScheduleGeneration();
+      showMessage('success', 'Schedule generated and published successfully');
+    } catch {
+      showMessage('error', 'Failed to generate schedule');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="loading">Loading workers...</div>;
   }
@@ -121,6 +135,16 @@ export function AdminPage() {
           Add Worker
         </button>
       </form>
+
+      <div className="admin-schedule-section">
+        <button
+          className="admin-btn admin-btn-generate"
+          onClick={handleGenerateSchedule}
+          disabled={isGenerating}
+        >
+          {isGenerating ? 'Generating...' : 'Generate Schedule Now'}
+        </button>
+      </div>
 
       {message && (
         <div className={`toast ${message.type === 'success' ? 'toast-success' : 'toast-error'}`}>

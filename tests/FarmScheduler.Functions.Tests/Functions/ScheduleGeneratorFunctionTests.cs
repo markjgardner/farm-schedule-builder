@@ -1,3 +1,5 @@
+using System.Text;
+using System.Text.Json;
 using FluentAssertions;
 using Moq;
 using FarmScheduler.Core.Models;
@@ -41,6 +43,34 @@ public class ScheduleGeneratorFunctionTests
             logger.Object);
     }
 
+    private static HttpRequest CreateAdminRequest(string userId = "admin-1")
+    {
+        var context = new DefaultHttpContext();
+        var json = JsonSerializer.Serialize(new { userId, userDetails = "Admin User" });
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+        context.Request.Headers["x-ms-client-principal"] = base64;
+        return context.Request;
+    }
+
+    private void SetupScheduleGeneration()
+    {
+        var workers = new List<Worker>();
+        var availability = new List<Availability>();
+        var schedule = new Schedule
+        {
+            WindowStart = new DateOnly(2024, 1, 15),
+            WindowEnd = new DateOnly(2024, 1, 28),
+            Assignments = new List<ShiftAssignment>()
+        };
+
+        _mockWorkerRepo.Setup(x => x.GetAllActiveAsync()).ReturnsAsync(workers);
+        _mockAvailabilityService.Setup(x => x.GetAvailabilityAsync(It.IsAny<string>(), null)).ReturnsAsync(availability);
+        _mockSchedulingService
+            .Setup(x => x.GenerateSchedule(It.IsAny<IReadOnlyList<Worker>>(), It.IsAny<IReadOnlyList<Availability>>(),
+                It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
+            .Returns(schedule);
+    }
+
     [Fact]
     public async Task GenerateAndPublishScheduleAsync_GeneratesAndPublishes()
     {
@@ -81,48 +111,56 @@ public class ScheduleGeneratorFunctionTests
     }
 
     [Fact]
-    public async Task RunHttp_ReturnsOkWithSchedule()
+    public async Task RunHttp_ReturnsOk_WhenAdmin()
     {
-        var workers = new List<Worker>();
-        var availability = new List<Availability>();
-        var schedule = new Schedule
-        {
-            WindowStart = new DateOnly(2024, 1, 15),
-            WindowEnd = new DateOnly(2024, 1, 28),
-            Assignments = new List<ShiftAssignment>()
-        };
+        var adminWorker = new Worker { Id = "admin-1", DisplayName = "Admin", IsActive = true, IsAdmin = true };
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("admin-1")).ReturnsAsync(adminWorker);
+        SetupScheduleGeneration();
 
-        _mockWorkerRepo.Setup(x => x.GetAllActiveAsync()).ReturnsAsync(workers);
-        _mockAvailabilityService.Setup(x => x.GetAvailabilityAsync(It.IsAny<string>(), null)).ReturnsAsync(availability);
-        _mockSchedulingService
-            .Setup(x => x.GenerateSchedule(It.IsAny<IReadOnlyList<Worker>>(), It.IsAny<IReadOnlyList<Availability>>(),
-                It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
-            .Returns(schedule);
-
-        var context = new DefaultHttpContext();
-        var result = await _function.RunHttp(context.Request);
+        var req = CreateAdminRequest();
+        var result = await _function.RunHttp(req);
 
         result.Should().BeOfType<OkObjectResult>();
     }
 
     [Fact]
+    public async Task RunHttp_Returns401_WhenNoAuth()
+    {
+        var context = new DefaultHttpContext();
+        var result = await _function.RunHttp(context.Request);
+
+        result.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Fact]
+    public async Task RunHttp_Returns403_WhenNotAdmin()
+    {
+        var worker = new Worker { Id = "user-1", DisplayName = "User", IsActive = true, IsAdmin = false };
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("user-1")).ReturnsAsync(worker);
+
+        var req = CreateAdminRequest(userId: "user-1");
+        var result = await _function.RunHttp(req);
+
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public async Task RunHttp_Returns403_WhenUserNotFound()
+    {
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("unknown")).ReturnsAsync((Worker?)null);
+
+        var req = CreateAdminRequest(userId: "unknown");
+        var result = await _function.RunHttp(req);
+
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
     public async Task GenerateAndPublishScheduleAsync_PublishesToServiceBus()
     {
-        var workers = new List<Worker>();
-        var availability = new List<Availability>();
-        var schedule = new Schedule
-        {
-            WindowStart = new DateOnly(2024, 1, 15),
-            WindowEnd = new DateOnly(2024, 1, 28),
-            Assignments = new List<ShiftAssignment>()
-        };
-
-        _mockWorkerRepo.Setup(x => x.GetAllActiveAsync()).ReturnsAsync(workers);
-        _mockAvailabilityService.Setup(x => x.GetAvailabilityAsync(It.IsAny<string>(), null)).ReturnsAsync(availability);
-        _mockSchedulingService
-            .Setup(x => x.GenerateSchedule(It.IsAny<IReadOnlyList<Worker>>(), It.IsAny<IReadOnlyList<Availability>>(),
-                It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
-            .Returns(schedule);
+        SetupScheduleGeneration();
 
         await _function.GenerateAndPublishScheduleAsync();
 

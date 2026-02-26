@@ -104,3 +104,9 @@ export function deleteWorker(id: string): Promise<void> {
     method: 'DELETE',
   });
 }
+
+export function triggerScheduleGeneration(): Promise<Schedule> {
+  return apiFetch<Schedule>('/api/manage/schedule/generate', {
+    method: 'POST',
+  });
+}

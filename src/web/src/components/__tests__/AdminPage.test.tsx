@@ -9,6 +9,7 @@ const mockDeactivateWorker = vi.fn();
 const mockActivateWorker = vi.fn();
 const mockSetWorkerAdmin = vi.fn();
 const mockDeleteWorker = vi.fn();
+const mockTriggerScheduleGeneration = vi.fn();
 
 vi.mock('../../services/api', () => ({
   getAdminWorkers: (...args: unknown[]) => mockGetAdminWorkers(...args),
@@ -17,6 +18,7 @@ vi.mock('../../services/api', () => ({
   activateWorker: (...args: unknown[]) => mockActivateWorker(...args),
   setWorkerAdmin: (...args: unknown[]) => mockSetWorkerAdmin(...args),
   deleteWorker: (...args: unknown[]) => mockDeleteWorker(...args),
+  triggerScheduleGeneration: (...args: unknown[]) => mockTriggerScheduleGeneration(...args),
 }));
 
 const { AdminPage } = await import('../AdminPage');
@@ -36,6 +38,7 @@ describe('AdminPage', () => {
     mockActivateWorker.mockResolvedValue(undefined);
     mockSetWorkerAdmin.mockResolvedValue(undefined);
     mockDeleteWorker.mockResolvedValue(undefined);
+    mockTriggerScheduleGeneration.mockResolvedValue({ windowStart: '2024-01-15', windowEnd: '2024-01-28', assignments: [] });
   });
 
   it('shows loading state initially', () => {
@@ -138,5 +141,29 @@ describe('AdminPage', () => {
     mockGetAdminWorkers.mockRejectedValue(new Error('fail'));
     render(<AdminPage />);
     expect(await screen.findByText('Failed to load workers')).toBeInTheDocument();
+  });
+
+  it('triggers schedule generation', async () => {
+    const user = userEvent.setup();
+    render(<AdminPage />);
+    await screen.findByText('Alice');
+
+    await user.click(screen.getByText('Generate Schedule Now'));
+
+    await waitFor(() => {
+      expect(mockTriggerScheduleGeneration).toHaveBeenCalled();
+    });
+    expect(await screen.findByText('Schedule generated and published successfully')).toBeInTheDocument();
+  });
+
+  it('shows error when schedule generation fails', async () => {
+    mockTriggerScheduleGeneration.mockRejectedValue(new Error('fail'));
+    const user = userEvent.setup();
+    render(<AdminPage />);
+    await screen.findByText('Alice');
+
+    await user.click(screen.getByText('Generate Schedule Now'));
+
+    expect(await screen.findByText('Failed to generate schedule')).toBeInTheDocument();
   });
 });
