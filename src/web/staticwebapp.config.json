@@ -1,6 +1,6 @@
 {
   "routes": [
-    { "route": "/api/admin/*", "allowedRoles": ["authenticated"] },
+    { "route": "/api/manage/*", "allowedRoles": ["authenticated"] },
     { "route": "/api/*", "allowedRoles": ["authenticated"] },
     { "route": "/.auth/login/github", "statusCode": 404 },
     { "route": "/.auth/login/twitter", "statusCode": 404 }

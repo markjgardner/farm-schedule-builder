@@ -25,7 +25,7 @@ export function useAuth(): AuthState {
           // Auto-register as worker on first login (fire-and-forget)
           registerWorker().catch(() => {});
           // Check admin status by probing the admin endpoint
-          fetch('/api/admin/workers')
+          fetch('/api/manage/workers')
             .then((res) => {
               setIsAdmin(res.ok);
             })

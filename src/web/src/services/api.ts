@@ -56,37 +56,37 @@ export function registerWorker(): Promise<Worker> {
 }
 
 export function getAdminWorkers(): Promise<Worker[]> {
-  return apiFetch<Worker[]>('/api/admin/workers');
+  return apiFetch<Worker[]>('/api/manage/workers');
 }
 
 export function addWorker(displayName: string, email: string): Promise<Worker> {
-  return apiFetch<Worker>('/api/admin/workers', {
+  return apiFetch<Worker>('/api/manage/workers', {
     method: 'POST',
     body: JSON.stringify({ displayName, email }),
   });
 }
 
 export function deactivateWorker(id: string): Promise<void> {
-  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/deactivate`, {
+  return apiFetch<void>(`/api/manage/workers/${encodeURIComponent(id)}/deactivate`, {
     method: 'PUT',
   });
 }
 
 export function activateWorker(id: string): Promise<void> {
-  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/activate`, {
+  return apiFetch<void>(`/api/manage/workers/${encodeURIComponent(id)}/activate`, {
     method: 'PUT',
   });
 }
 
 export function setWorkerAdmin(id: string, isAdmin: boolean): Promise<void> {
-  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}/admin`, {
+  return apiFetch<void>(`/api/manage/workers/${encodeURIComponent(id)}/admin`, {
     method: 'PUT',
     body: JSON.stringify({ isAdmin }),
   });
 }
 
 export function deleteWorker(id: string): Promise<void> {
-  return apiFetch<void>(`/api/admin/workers/${encodeURIComponent(id)}`, {
+  return apiFetch<void>(`/api/manage/workers/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

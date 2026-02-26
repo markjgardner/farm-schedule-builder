@@ -39,7 +39,7 @@ public class AdminFunctions
 
     [Function("AdminGetWorkers")]
     public async Task<IActionResult> GetWorkers(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "admin/workers")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "manage/workers")] HttpRequest req)
     {
         var (_, error) = await RequireAdminAsync(req);
         if (error != null) return error;
@@ -50,7 +50,7 @@ public class AdminFunctions
 
     [Function("AdminCreateWorker")]
     public async Task<IActionResult> CreateWorker(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "admin/workers")] HttpRequest req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "manage/workers")] HttpRequest req)
     {
         var (_, error) = await RequireAdminAsync(req);
         if (error != null) return error;
@@ -78,7 +78,7 @@ public class AdminFunctions
 
     [Function("AdminDeactivateWorker")]
     public async Task<IActionResult> DeactivateWorker(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/workers/{id}/deactivate")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "manage/workers/{id}/deactivate")] HttpRequest req,
         string id)
     {
         var (_, error) = await RequireAdminAsync(req);
@@ -97,7 +97,7 @@ public class AdminFunctions
 
     [Function("AdminActivateWorker")]
     public async Task<IActionResult> ActivateWorker(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/workers/{id}/activate")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "manage/workers/{id}/activate")] HttpRequest req,
         string id)
     {
         var (_, error) = await RequireAdminAsync(req);
@@ -116,7 +116,7 @@ public class AdminFunctions
 
     [Function("AdminToggleAdmin")]
     public async Task<IActionResult> ToggleAdmin(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "admin/workers/{id}/admin")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "manage/workers/{id}/admin")] HttpRequest req,
         string id)
     {
         var (_, error) = await RequireAdminAsync(req);
@@ -138,7 +138,7 @@ public class AdminFunctions
 
     [Function("AdminDeleteWorker")]
     public async Task<IActionResult> DeleteWorker(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "admin/workers/{id}")] HttpRequest req,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "manage/workers/{id}")] HttpRequest req,
         string id)
     {
         var (_, error) = await RequireAdminAsync(req);
