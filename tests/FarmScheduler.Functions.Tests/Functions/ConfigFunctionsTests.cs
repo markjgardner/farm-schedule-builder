@@ -73,8 +73,13 @@ public class ConfigFunctionsTests
 
         var result = await _functions.GetBarnConfigs(CreateAdminRequest());
 
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        var configs = (ok.Value as IEnumerable<BarnConfig>)!.ToList();
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.StatusCode.Should().Be(200);
+        var configs = JsonSerializer.Deserialize<List<BarnConfig>>(content.Content!, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+        })!;
         configs.Should().HaveCount(2);
         configs.First(c => c.Barn == Barn.York).WorkersPerShift.Should().Be(2);
         configs.First(c => c.Barn == Barn.Windhover).WorkersPerShift.Should().Be(1);
@@ -96,7 +101,7 @@ public class ConfigFunctionsTests
 
         var result = await _functions.SetBarnConfig(req, "York");
 
-        result.Should().BeOfType<OkObjectResult>();
+        result.Should().BeOfType<ContentResult>();
         _mockBarnConfigRepo.Verify(x => x.UpsertAsync(It.Is<BarnConfig>(c =>
             c.Barn == Barn.York && c.WorkersPerShift == 3)), Times.Once);
     }
@@ -135,8 +140,8 @@ public class ConfigFunctionsTests
 
         var result = await _functions.GetBlackouts(CreateAdminRequest());
 
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        (ok.Value as IReadOnlyList<BlackoutDate>).Should().HaveCount(1);
+        var content = result.Should().BeOfType<ContentResult>().Subject;
+        content.StatusCode.Should().Be(200);
     }
 
     [Fact]
@@ -147,7 +152,7 @@ public class ConfigFunctionsTests
 
         var result = await _functions.AddBlackout(req);
 
-        result.Should().BeOfType<OkObjectResult>();
+        result.Should().BeOfType<ContentResult>();
         _mockBlackoutRepo.Verify(x => x.UpsertAsync(It.Is<BlackoutDate>(b =>
             b.Date == new DateOnly(2024, 12, 25) && b.Barn == null && b.Shift == null)), Times.Once);
     }
@@ -160,7 +165,7 @@ public class ConfigFunctionsTests
 
         var result = await _functions.AddBlackout(req);
 
-        result.Should().BeOfType<OkObjectResult>();
+        result.Should().BeOfType<ContentResult>();
         _mockBlackoutRepo.Verify(x => x.UpsertAsync(It.Is<BlackoutDate>(b =>
             b.Barn == Barn.York && b.Shift == null)), Times.Once);
     }
@@ -179,7 +184,7 @@ public class ConfigFunctionsTests
 
         var result = await _functions.AddBlackout(req);
 
-        result.Should().BeOfType<OkObjectResult>();
+        result.Should().BeOfType<ContentResult>();
         _mockBlackoutRepo.Verify(x => x.UpsertAsync(It.Is<BlackoutDate>(b =>
             b.Barn == Barn.York && b.Shift == ShiftTime.Morning)), Times.Once);
     }

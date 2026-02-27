@@ -63,7 +63,12 @@ public class ConfigFunctions
             .Select(b => configLookup.TryGetValue(b, out var c) ? c : new BarnConfig { Barn = b, WorkersPerShift = 1 })
             .ToList();
 
-        return new OkObjectResult(result);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(result, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     [Function("ConfigSetBarn")]
@@ -87,7 +92,12 @@ public class ConfigFunctions
         await _barnConfigRepo.UpsertAsync(config);
 
         _logger.LogInformation("Admin set barn {Barn} to {Workers} workers per shift", barn, workersPerShift);
-        return new OkObjectResult(config);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(config, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     // --- Blackout Dates ---
@@ -100,7 +110,12 @@ public class ConfigFunctions
         if (error != null) return error;
 
         var blackouts = await _blackoutRepo.GetAllAsync();
-        return new OkObjectResult(blackouts);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(blackouts, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     [Function("ConfigAddBlackout")]
@@ -143,7 +158,12 @@ public class ConfigFunctions
         _logger.LogInformation("Admin added blackout for {Date} (barn={Barn}, shift={Shift})",
             date, barn?.ToString() ?? "all", shift?.ToString() ?? "all");
 
-        return new OkObjectResult(blackout);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(blackout, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     [Function("ConfigDeleteBlackout")]
