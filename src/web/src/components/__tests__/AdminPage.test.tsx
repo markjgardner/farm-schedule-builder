@@ -10,6 +10,11 @@ const mockActivateWorker = vi.fn();
 const mockSetWorkerAdmin = vi.fn();
 const mockDeleteWorker = vi.fn();
 const mockTriggerScheduleGeneration = vi.fn();
+const mockGetBarnConfigs = vi.fn();
+const mockSetBarnConfig = vi.fn();
+const mockGetBlackouts = vi.fn();
+const mockAddBlackout = vi.fn();
+const mockDeleteBlackout = vi.fn();
 
 vi.mock('../../services/api', () => ({
   getAdminWorkers: (...args: unknown[]) => mockGetAdminWorkers(...args),
@@ -19,6 +24,11 @@ vi.mock('../../services/api', () => ({
   setWorkerAdmin: (...args: unknown[]) => mockSetWorkerAdmin(...args),
   deleteWorker: (...args: unknown[]) => mockDeleteWorker(...args),
   triggerScheduleGeneration: (...args: unknown[]) => mockTriggerScheduleGeneration(...args),
+  getBarnConfigs: (...args: unknown[]) => mockGetBarnConfigs(...args),
+  setBarnConfig: (...args: unknown[]) => mockSetBarnConfig(...args),
+  getBlackouts: (...args: unknown[]) => mockGetBlackouts(...args),
+  addBlackout: (...args: unknown[]) => mockAddBlackout(...args),
+  deleteBlackout: (...args: unknown[]) => mockDeleteBlackout(...args),
 }));
 
 const { AdminPage } = await import('../AdminPage');
@@ -39,12 +49,24 @@ describe('AdminPage', () => {
     mockSetWorkerAdmin.mockResolvedValue(undefined);
     mockDeleteWorker.mockResolvedValue(undefined);
     mockTriggerScheduleGeneration.mockResolvedValue({ windowStart: '2024-01-15', windowEnd: '2024-01-28', assignments: [] });
+    mockGetBarnConfigs.mockResolvedValue([
+      { barn: 'Windhover', workersPerShift: 1 },
+      { barn: 'York', workersPerShift: 2 },
+    ]);
+    mockSetBarnConfig.mockResolvedValue(undefined);
+    mockGetBlackouts.mockResolvedValue([
+      { id: '2024-12-25', date: '2024-12-25', description: 'Christmas Day', barn: null, shift: null },
+    ]);
+    mockAddBlackout.mockResolvedValue({ id: '2024-11-28', date: '2024-11-28', description: 'Thanksgiving', barn: null, shift: null });
+    mockDeleteBlackout.mockResolvedValue(undefined);
   });
 
   it('shows loading state initially', () => {
     mockGetAdminWorkers.mockReturnValue(new Promise(() => {}));
+    mockGetBarnConfigs.mockReturnValue(new Promise(() => {}));
+    mockGetBlackouts.mockReturnValue(new Promise(() => {}));
     render(<AdminPage />);
-    expect(screen.getByText('Loading workers...')).toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
   it('renders worker table', async () => {
@@ -140,7 +162,7 @@ describe('AdminPage', () => {
   it('shows error when loading fails', async () => {
     mockGetAdminWorkers.mockRejectedValue(new Error('fail'));
     render(<AdminPage />);
-    expect(await screen.findByText('Failed to load workers')).toBeInTheDocument();
+    expect(await screen.findByText('Failed to load data')).toBeInTheDocument();
   });
 
   it('triggers schedule generation', async () => {
@@ -165,5 +187,76 @@ describe('AdminPage', () => {
     await user.click(screen.getByText('Generate Schedule Now'));
 
     expect(await screen.findByText('Failed to generate schedule')).toBeInTheDocument();
+  });
+
+  // --- Barn Config Tests ---
+
+  it('renders barn configuration table', async () => {
+    render(<AdminPage />);
+    await screen.findByText('Barn Configuration');
+    // Both barns should appear in the barn config table
+    const barnRows = screen.getAllByText('Windhover');
+    expect(barnRows.length).toBeGreaterThanOrEqual(1);
+    const yorkRows = screen.getAllByText('York');
+    expect(yorkRows.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('increments workers per shift', async () => {
+    const user = userEvent.setup();
+    render(<AdminPage />);
+    await screen.findByText('Barn Configuration');
+
+    // Find the + button for York (second row, which shows 2)
+    const plusButtons = screen.getAllByText('+');
+    await user.click(plusButtons[1]); // York's + button
+
+    await waitFor(() => {
+      expect(mockSetBarnConfig).toHaveBeenCalledWith('York', 3);
+    });
+  });
+
+  // --- Blackout Date Tests ---
+
+  it('renders existing blackout dates', async () => {
+    render(<AdminPage />);
+    await screen.findByText('Blackout Dates');
+    expect(screen.getByText('Christmas Day')).toBeInTheDocument();
+    expect(screen.getByText('2024-12-25')).toBeInTheDocument();
+  });
+
+  it('adds a blackout date', async () => {
+    const user = userEvent.setup();
+    render(<AdminPage />);
+    await screen.findByText('Blackout Dates');
+
+    // Date inputs in jsdom need direct value setting since type="date" behaves differently
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    // Simulate setting the date via fireEvent since userEvent.type doesn't work well with date inputs
+    await user.clear(dateInput);
+    // Use native event to set value
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(dateInput, '2024-11-28');
+    dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+    dateInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+    const descInput = screen.getByPlaceholderText('Description (e.g., Christmas Day)');
+    await user.type(descInput, 'Thanksgiving');
+
+    await user.click(screen.getByText('Add Blackout'));
+
+    await waitFor(() => {
+      expect(mockAddBlackout).toHaveBeenCalled();
+    });
+  });
+
+  it('removes a blackout date', async () => {
+    const user = userEvent.setup();
+    render(<AdminPage />);
+    await screen.findByText('Christmas Day');
+
+    await user.click(screen.getByText('Remove'));
+
+    await waitFor(() => {
+      expect(mockDeleteBlackout).toHaveBeenCalledWith('2024-12-25');
+    });
   });
 });

@@ -14,6 +14,8 @@ public class ScheduleGeneratorFunction
     private readonly IWorkerRepository _workerRepository;
     private readonly IAvailabilityService _availabilityService;
     private readonly ISchedulingService _schedulingService;
+    private readonly IBarnConfigRepository _barnConfigRepository;
+    private readonly IBlackoutRepository _blackoutRepository;
     private readonly ServiceBusClient _serviceBusClient;
     private readonly ILogger<ScheduleGeneratorFunction> _logger;
 
@@ -27,12 +29,16 @@ public class ScheduleGeneratorFunction
         IWorkerRepository workerRepository,
         IAvailabilityService availabilityService,
         ISchedulingService schedulingService,
+        IBarnConfigRepository barnConfigRepository,
+        IBlackoutRepository blackoutRepository,
         ServiceBusClient serviceBusClient,
         ILogger<ScheduleGeneratorFunction> logger)
     {
         _workerRepository = workerRepository;
         _availabilityService = availabilityService;
         _schedulingService = schedulingService;
+        _barnConfigRepository = barnConfigRepository;
+        _blackoutRepository = blackoutRepository;
         _serviceBusClient = serviceBusClient;
         _logger = logger;
     }
@@ -77,7 +83,9 @@ public class ScheduleGeneratorFunction
 
         var workers = await _workerRepository.GetAllActiveAsync();
         var availability = await _availabilityService.GetAvailabilityAsync(windowStartStr);
-        var schedule = _schedulingService.GenerateSchedule(workers, availability, windowStart, windowEnd);
+        var barnConfigs = await _barnConfigRepository.GetAllAsync();
+        var blackouts = await _blackoutRepository.GetForWindowAsync(windowStart, windowEnd);
+        var schedule = _schedulingService.GenerateSchedule(workers, availability, windowStart, windowEnd, barnConfigs, blackouts);
 
         var json = JsonSerializer.Serialize(schedule, JsonOptions);
 
