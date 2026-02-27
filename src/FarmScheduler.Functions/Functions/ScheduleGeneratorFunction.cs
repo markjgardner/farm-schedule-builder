@@ -89,7 +89,13 @@ public class ScheduleGeneratorFunction
 
         var html = ScheduleHtmlFormatter.ToHtml(schedule);
 
-        var payload = new { schedule, html };
+        var payload = new
+        {
+            schedule.WindowStart,
+            schedule.WindowEnd,
+            schedule.GeneratedAt,
+            Html = html
+        };
         var json = JsonSerializer.Serialize(payload, JsonOptions);
 
         await using var sender = _serviceBusClient.CreateSender("schedule-generated");
