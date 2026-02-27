@@ -18,6 +18,8 @@ public class ScheduleGeneratorFunctionTests
     private readonly Mock<IWorkerRepository> _mockWorkerRepo;
     private readonly Mock<IAvailabilityService> _mockAvailabilityService;
     private readonly Mock<ISchedulingService> _mockSchedulingService;
+    private readonly Mock<IBarnConfigRepository> _mockBarnConfigRepo;
+    private readonly Mock<IBlackoutRepository> _mockBlackoutRepo;
     private readonly Mock<ServiceBusClient> _mockServiceBusClient;
     private readonly Mock<ServiceBusSender> _mockSender;
     private readonly ScheduleGeneratorFunction _function;
@@ -27,6 +29,8 @@ public class ScheduleGeneratorFunctionTests
         _mockWorkerRepo = new Mock<IWorkerRepository>();
         _mockAvailabilityService = new Mock<IAvailabilityService>();
         _mockSchedulingService = new Mock<ISchedulingService>();
+        _mockBarnConfigRepo = new Mock<IBarnConfigRepository>();
+        _mockBlackoutRepo = new Mock<IBlackoutRepository>();
         _mockServiceBusClient = new Mock<ServiceBusClient>();
         _mockSender = new Mock<ServiceBusSender>();
         var logger = new Mock<ILogger<ScheduleGeneratorFunction>>();
@@ -35,10 +39,16 @@ public class ScheduleGeneratorFunctionTests
             .Setup(x => x.CreateSender("schedule-generated"))
             .Returns(_mockSender.Object);
 
+        _mockBarnConfigRepo.Setup(x => x.GetAllAsync()).ReturnsAsync(new List<BarnConfig>());
+        _mockBlackoutRepo.Setup(x => x.GetForWindowAsync(It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
+            .ReturnsAsync(new List<BlackoutDate>());
+
         _function = new ScheduleGeneratorFunction(
             _mockWorkerRepo.Object,
             _mockAvailabilityService.Object,
             _mockSchedulingService.Object,
+            _mockBarnConfigRepo.Object,
+            _mockBlackoutRepo.Object,
             _mockServiceBusClient.Object,
             logger.Object);
     }
@@ -67,7 +77,8 @@ public class ScheduleGeneratorFunctionTests
         _mockAvailabilityService.Setup(x => x.GetAvailabilityAsync(It.IsAny<string>(), null)).ReturnsAsync(availability);
         _mockSchedulingService
             .Setup(x => x.GenerateSchedule(It.IsAny<IReadOnlyList<Worker>>(), It.IsAny<IReadOnlyList<Availability>>(),
-                It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
+                It.IsAny<DateOnly>(), It.IsAny<DateOnly>(),
+                It.IsAny<IReadOnlyList<BarnConfig>>(), It.IsAny<IReadOnlyList<BlackoutDate>>()))
             .Returns(schedule);
     }
 
@@ -97,7 +108,8 @@ public class ScheduleGeneratorFunctionTests
         _mockWorkerRepo.Setup(x => x.GetAllActiveAsync()).ReturnsAsync(workers);
         _mockAvailabilityService.Setup(x => x.GetAvailabilityAsync(It.IsAny<string>(), null)).ReturnsAsync(availability);
         _mockSchedulingService
-            .Setup(x => x.GenerateSchedule(workers, availability, It.IsAny<DateOnly>(), It.IsAny<DateOnly>()))
+            .Setup(x => x.GenerateSchedule(workers, availability, It.IsAny<DateOnly>(), It.IsAny<DateOnly>(),
+                It.IsAny<IReadOnlyList<BarnConfig>>(), It.IsAny<IReadOnlyList<BlackoutDate>>()))
             .Returns(schedule);
 
         var result = await _function.GenerateAndPublishScheduleAsync();
@@ -106,7 +118,8 @@ public class ScheduleGeneratorFunctionTests
         _mockWorkerRepo.Verify(x => x.GetAllActiveAsync(), Times.Once);
         _mockAvailabilityService.Verify(x => x.GetAvailabilityAsync(It.IsAny<string>(), null), Times.Once);
         _mockSchedulingService.Verify(x => x.GenerateSchedule(
-            workers, availability, It.IsAny<DateOnly>(), It.IsAny<DateOnly>()), Times.Once);
+            workers, availability, It.IsAny<DateOnly>(), It.IsAny<DateOnly>(),
+            It.IsAny<IReadOnlyList<BarnConfig>>(), It.IsAny<IReadOnlyList<BlackoutDate>>()), Times.Once);
         _mockSender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), default), Times.Once);
     }
 

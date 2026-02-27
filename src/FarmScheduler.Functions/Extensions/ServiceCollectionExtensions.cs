@@ -66,6 +66,8 @@ public static class ServiceCollectionExtensions
         // Repositories
         services.AddSingleton<IWorkerRepository, WorkerTableRepository>();
         services.AddSingleton<IAvailabilityRepository, AvailabilityTableRepository>();
+        services.AddSingleton<IBarnConfigRepository, BarnConfigTableRepository>();
+        services.AddSingleton<IBlackoutRepository, BlackoutTableRepository>();
 
         // Services
         services.AddSingleton<ISchedulingService, SchedulingService>();

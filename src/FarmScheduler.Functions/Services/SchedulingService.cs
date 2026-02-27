@@ -18,7 +18,9 @@ public class SchedulingService : ISchedulingService
         IReadOnlyList<Worker> workers,
         IReadOnlyList<Availability> availability,
         DateOnly windowStart,
-        DateOnly windowEnd)
+        DateOnly windowEnd,
+        IReadOnlyList<BarnConfig>? barnConfigs = null,
+        IReadOnlyList<BlackoutDate>? blackouts = null)
     {
         // Index availability by (WorkerId, Date) for fast lookup
         var availabilityLookup = availability
@@ -26,14 +28,37 @@ public class SchedulingService : ISchedulingService
 
         var activeWorkers = workers.Where(w => w.IsActive).ToList();
 
-        // Build all slots
+        // Build barn staffing lookup (default to 1)
+        var staffingLookup = new Dictionary<Barn, int>();
+        foreach (var barn in Enum.GetValues<Barn>())
+            staffingLookup[barn] = 1;
+        if (barnConfigs != null)
+        {
+            foreach (var cfg in barnConfigs)
+                staffingLookup[cfg.Barn] = Math.Max(1, cfg.WorkersPerShift);
+        }
+
+        // Build blackout lookup for fast checking
+        var blackoutSet = new HashSet<(DateOnly Date, Barn? Barn, ShiftTime? Shift)>();
+        if (blackouts != null)
+        {
+            foreach (var b in blackouts)
+                blackoutSet.Add((b.Date, b.Barn, b.Shift));
+        }
+
+        // Build all slots, respecting blackouts and staffing levels
         var slots = new List<(DateOnly Date, Barn Barn, ShiftTime Shift)>();
         for (var date = windowStart; date <= windowEnd; date = date.AddDays(1))
         {
             foreach (var barn in Enum.GetValues<Barn>())
             foreach (var shift in Enum.GetValues<ShiftTime>())
             {
-                slots.Add((date, barn, shift));
+                if (IsBlackedOut(date, barn, shift, blackoutSet))
+                    continue;
+
+                int staffingCount = staffingLookup[barn];
+                for (int i = 0; i < staffingCount; i++)
+                    slots.Add((date, barn, shift));
             }
         }
 
@@ -162,5 +187,26 @@ public class SchedulingService : ISchedulingService
         }
 
         return true;
+    }
+
+    private static bool IsBlackedOut(
+        DateOnly date,
+        Barn barn,
+        ShiftTime shift,
+        HashSet<(DateOnly Date, Barn? Barn, ShiftTime? Shift)> blackoutSet)
+    {
+        // Whole-day blackout (all barns, all shifts)
+        if (blackoutSet.Contains((date, null, null)))
+            return true;
+        // Barn-specific blackout (all shifts at this barn)
+        if (blackoutSet.Contains((date, barn, null)))
+            return true;
+        // Shift-specific blackout (all barns for this shift)
+        if (blackoutSet.Contains((date, null, shift)))
+            return true;
+        // Exact barn+shift blackout
+        if (blackoutSet.Contains((date, barn, shift)))
+            return true;
+        return false;
     }
 }

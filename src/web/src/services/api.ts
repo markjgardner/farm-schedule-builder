@@ -1,4 +1,4 @@
-import type { Schedule, Worker } from '../types';
+import type { BarnConfig, BlackoutDate, Schedule, Worker } from '../types';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -108,5 +108,42 @@ export function deleteWorker(id: string): Promise<void> {
 export function triggerScheduleGeneration(): Promise<Schedule> {
   return apiFetch<Schedule>('/api/manage/schedule/generate', {
     method: 'POST',
+  });
+}
+
+// --- Barn Config ---
+
+export function getBarnConfigs(): Promise<BarnConfig[]> {
+  return apiFetch<BarnConfig[]>('/api/manage/config/barns');
+}
+
+export function setBarnConfig(barn: string, workersPerShift: number): Promise<BarnConfig> {
+  return apiFetch<BarnConfig>(`/api/manage/config/barns/${encodeURIComponent(barn)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ workersPerShift }),
+  });
+}
+
+// --- Blackout Dates ---
+
+export function getBlackouts(): Promise<BlackoutDate[]> {
+  return apiFetch<BlackoutDate[]>('/api/manage/config/blackouts');
+}
+
+export function addBlackout(blackout: {
+  date: string;
+  description: string;
+  barn?: string | null;
+  shift?: string | null;
+}): Promise<BlackoutDate> {
+  return apiFetch<BlackoutDate>('/api/manage/config/blackouts', {
+    method: 'POST',
+    body: JSON.stringify(blackout),
+  });
+}
+
+export function deleteBlackout(id: string): Promise<void> {
+  return apiFetch<void>(`/api/manage/config/blackouts/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
   });
 }

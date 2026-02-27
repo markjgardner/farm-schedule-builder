@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Worker } from '../types';
+import type { BarnConfig, BlackoutDate, Worker } from '../types';
+import { Barn, ShiftTime } from '../types';
 import {
   activateWorker,
+  addBlackout,
   addWorker,
   deactivateWorker,
+  deleteBlackout,
   deleteWorker,
   getAdminWorkers,
+  getBarnConfigs,
+  getBlackouts,
+  setBarnConfig,
   setWorkerAdmin,
   triggerScheduleGeneration,
 } from '../services/api';
 
 export function AdminPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
+  const [barnConfigs, setBarnConfigs] = useState<BarnConfig[]>([]);
+  const [blackouts, setBlackouts] = useState<BlackoutDate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -20,21 +28,33 @@ export function AdminPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const loadWorkers = useCallback(async () => {
+  // Blackout form state
+  const [newBlackoutDate, setNewBlackoutDate] = useState('');
+  const [newBlackoutDesc, setNewBlackoutDesc] = useState('');
+  const [newBlackoutBarn, setNewBlackoutBarn] = useState<string>('');
+  const [newBlackoutShift, setNewBlackoutShift] = useState<string>('');
+
+  const loadData = useCallback(async () => {
     try {
-      const data = await getAdminWorkers();
-      setWorkers(data);
+      const [workerData, barnData, blackoutData] = await Promise.all([
+        getAdminWorkers(),
+        getBarnConfigs(),
+        getBlackouts(),
+      ]);
+      setWorkers(workerData);
+      setBarnConfigs(barnData);
+      setBlackouts(blackoutData);
       setError(null);
     } catch (err) {
-      setError('Failed to load workers');
+      setError('Failed to load data');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadWorkers();
-  }, [loadWorkers]);
+    loadData();
+  }, [loadData]);
 
   const showMessage = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -49,7 +69,7 @@ export function AdminPage() {
       setNewName('');
       setNewEmail('');
       showMessage('success', 'Worker added successfully');
-      await loadWorkers();
+      await loadData();
     } catch {
       showMessage('error', 'Failed to add worker');
     }
@@ -63,7 +83,7 @@ export function AdminPage() {
         await activateWorker(worker.id);
       }
       showMessage('success', `Worker ${worker.isActive ? 'deactivated' : 'activated'}`);
-      await loadWorkers();
+      await loadData();
     } catch {
       showMessage('error', 'Failed to update worker status');
     }
@@ -73,7 +93,7 @@ export function AdminPage() {
     try {
       await setWorkerAdmin(worker.id, !worker.isAdmin);
       showMessage('success', `Worker ${worker.isAdmin ? 'demoted' : 'promoted'} successfully`);
-      await loadWorkers();
+      await loadData();
     } catch {
       showMessage('error', 'Failed to update worker role');
     }
@@ -84,7 +104,7 @@ export function AdminPage() {
       await deleteWorker(id);
       setConfirmDeleteId(null);
       showMessage('success', 'Worker deleted');
-      await loadWorkers();
+      await loadData();
     } catch {
       showMessage('error', 'Failed to delete worker');
     }
@@ -102,8 +122,49 @@ export function AdminPage() {
     }
   };
 
+  const handleBarnConfigChange = async (barn: string, workersPerShift: number) => {
+    try {
+      await setBarnConfig(barn, workersPerShift);
+      showMessage('success', `${barn} updated to ${workersPerShift} worker(s) per shift`);
+      await loadData();
+    } catch {
+      showMessage('error', 'Failed to update barn configuration');
+    }
+  };
+
+  const handleAddBlackout = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBlackoutDate) return;
+    try {
+      await addBlackout({
+        date: newBlackoutDate,
+        description: newBlackoutDesc,
+        barn: newBlackoutBarn || null,
+        shift: newBlackoutShift || null,
+      });
+      setNewBlackoutDate('');
+      setNewBlackoutDesc('');
+      setNewBlackoutBarn('');
+      setNewBlackoutShift('');
+      showMessage('success', 'Blackout date added');
+      await loadData();
+    } catch {
+      showMessage('error', 'Failed to add blackout date');
+    }
+  };
+
+  const handleDeleteBlackout = async (id: string) => {
+    try {
+      await deleteBlackout(id);
+      showMessage('success', 'Blackout date removed');
+      await loadData();
+    } catch {
+      showMessage('error', 'Failed to remove blackout date');
+    }
+  };
+
   if (isLoading) {
-    return <div className="loading">Loading workers...</div>;
+    return <div className="loading">Loading...</div>;
   }
 
   if (error) {
@@ -220,6 +281,120 @@ export function AdminPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Barn Configuration */}
+      <h2>Barn Configuration</h2>
+      <div className="table-wrapper">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Barn</th>
+              <th>Workers Per Shift</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {barnConfigs.map((config) => (
+              <tr key={config.barn}>
+                <td>{config.barn}</td>
+                <td>{config.workersPerShift}</td>
+                <td className="admin-actions">
+                  <button
+                    className="admin-btn"
+                    onClick={() => handleBarnConfigChange(config.barn, config.workersPerShift - 1)}
+                    disabled={config.workersPerShift <= 1}
+                  >
+                    −
+                  </button>
+                  <button
+                    className="admin-btn"
+                    onClick={() => handleBarnConfigChange(config.barn, config.workersPerShift + 1)}
+                  >
+                    +
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Blackout Dates */}
+      <h2>Blackout Dates</h2>
+      <form className="admin-add-form" onSubmit={handleAddBlackout}>
+        <input
+          type="date"
+          value={newBlackoutDate}
+          onChange={(e) => setNewBlackoutDate(e.target.value)}
+          className="admin-input"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Description (e.g., Christmas Day)"
+          value={newBlackoutDesc}
+          onChange={(e) => setNewBlackoutDesc(e.target.value)}
+          className="admin-input"
+        />
+        <select
+          value={newBlackoutBarn}
+          onChange={(e) => setNewBlackoutBarn(e.target.value)}
+          className="admin-input"
+        >
+          <option value="">All Barns</option>
+          {Object.values(Barn).map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        <select
+          value={newBlackoutShift}
+          onChange={(e) => setNewBlackoutShift(e.target.value)}
+          className="admin-input"
+        >
+          <option value="">All Shifts</option>
+          {Object.values(ShiftTime).map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <button type="submit" className="admin-btn admin-btn-add">
+          Add Blackout
+        </button>
+      </form>
+      {blackouts.length > 0 && (
+        <div className="table-wrapper">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Scope</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {blackouts.map((b) => (
+                <tr key={b.id}>
+                  <td>{b.date}</td>
+                  <td>{b.description || '—'}</td>
+                  <td>
+                    {b.barn ? b.barn : 'All Barns'}
+                    {' / '}
+                    {b.shift ? b.shift : 'All Shifts'}
+                  </td>
+                  <td>
+                    <button
+                      className="admin-btn admin-btn-delete"
+                      onClick={() => handleDeleteBlackout(b.id)}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

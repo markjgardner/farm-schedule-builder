@@ -8,5 +8,7 @@ public interface ISchedulingService
         IReadOnlyList<Worker> workers,
         IReadOnlyList<Availability> availability,
         DateOnly windowStart,
-        DateOnly windowEnd);
+        DateOnly windowEnd,
+        IReadOnlyList<BarnConfig>? barnConfigs = null,
+        IReadOnlyList<BlackoutDate>? blackouts = null);
 }

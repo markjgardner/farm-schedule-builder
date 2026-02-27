@@ -44,6 +44,19 @@ export interface Schedule {
   assignments: ShiftAssignment[];
 }
 
+export interface BarnConfig {
+  barn: Barn;
+  workersPerShift: number;
+}
+
+export interface BlackoutDate {
+  id: string;
+  date: string;
+  description: string;
+  barn: Barn | null;
+  shift: ShiftTime | null;
+}
+
 export interface ClientPrincipal {
   identityProvider: string;
   userId: string;
