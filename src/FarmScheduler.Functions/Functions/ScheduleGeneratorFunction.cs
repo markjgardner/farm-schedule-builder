@@ -87,7 +87,10 @@ public class ScheduleGeneratorFunction
         var blackouts = await _blackoutRepository.GetForWindowAsync(windowStart, windowEnd);
         var schedule = _schedulingService.GenerateSchedule(workers, availability, windowStart, windowEnd, barnConfigs, blackouts);
 
-        var json = JsonSerializer.Serialize(schedule, JsonOptions);
+        var html = ScheduleHtmlFormatter.ToHtml(schedule);
+
+        var payload = new { schedule, html };
+        var json = JsonSerializer.Serialize(payload, JsonOptions);
 
         await using var sender = _serviceBusClient.CreateSender("schedule-generated");
         await sender.SendMessageAsync(new ServiceBusMessage(json));
@@ -96,6 +99,6 @@ public class ScheduleGeneratorFunction
             "Schedule published: {Assignments} assignments for {Start} to {End}",
             schedule.Assignments.Count, windowStart, windowEnd);
 
-        return schedule;
+        return payload;
     }
 }
