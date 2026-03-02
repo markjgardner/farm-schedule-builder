@@ -2,70 +2,71 @@
 # cleanup-test-data.sh
 #
 # Removes all test data seeded by seed-test-data.sh.
-# Deletes all entities from the Workers and Availability tables.
+# Deletes and recreates the workers and availability Cosmos DB containers
+# to quickly purge all seeded documents.
 #
 # Usage:
 #   chmod +x scripts/cleanup-test-data.sh
-#   ./scripts/cleanup-test-data.sh <storage-account-name>
+#   ./scripts/cleanup-test-data.sh <cosmos-account-name> <resource-group-name>
 #
 # Example:
-#   ./scripts/cleanup-test-data.sh stfarmdevw7mddf36mvnxm
+#   ./scripts/cleanup-test-data.sh cosmos-farm-dev rg-farm-dev
 
 set -euo pipefail
 
-STORAGE_ACCOUNT="${1:?Usage: $0 <storage-account-name>}"
-WORKERS_TABLE="Workers"
-AVAILABILITY_TABLE="Availability"
+COSMOS_ACCOUNT="${1:?Usage: $0 <cosmos-account-name> <resource-group-name>}"
+RESOURCE_GROUP="${2:?Usage: $0 <cosmos-account-name> <resource-group-name>}"
+DATABASE_NAME="FarmScheduler"
 
 echo "=== Farm Scheduler Test Data Cleanup ==="
-echo "Storage account: $STORAGE_ACCOUNT"
+echo "Cosmos DB account: $COSMOS_ACCOUNT"
+echo "Resource group:    $RESOURCE_GROUP"
+echo "Database:          $DATABASE_NAME"
 echo ""
 
-delete_all_entities() {
-  local table_name="$1"
-  echo "--- Cleaning table: $table_name ---"
+# --- Clean workers container (partition key /id, no TTL) ---
+echo "--- Cleaning container: workers ---"
+echo "  Deleting container..."
+az cosmosdb sql container delete \
+  --account-name "$COSMOS_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --database-name "$DATABASE_NAME" \
+  --name workers \
+  --yes 2>/dev/null || true
 
-  local entities
-  entities=$(az storage entity query \
-    --table-name "$table_name" \
-    --account-name "$STORAGE_ACCOUNT" \
-    --auth-mode login \
-    --query "items[].{PartitionKey:PartitionKey, RowKey:RowKey}" \
-    -o json 2>/dev/null || echo "[]")
+echo "  Recreating container..."
+az cosmosdb sql container create \
+  --account-name "$COSMOS_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --database-name "$DATABASE_NAME" \
+  --name workers \
+  --partition-key-path "/id" > /dev/null
 
-  local count
-  count=$(echo "$entities" | jq length)
+echo "  ✓ workers container recreated"
 
-  if [ "$count" -eq 0 ]; then
-    echo "  No entities found, table is clean."
-    return
-  fi
-
-  echo "  Found $count entities to delete..."
-
-  echo "$entities" | jq -c '.[]' | while read -r entity; do
-    local pk rk
-    pk=$(echo "$entity" | jq -r '.PartitionKey')
-    rk=$(echo "$entity" | jq -r '.RowKey')
-
-    az storage entity delete \
-      --table-name "$table_name" \
-      --account-name "$STORAGE_ACCOUNT" \
-      --auth-mode login \
-      --partition-key "$pk" \
-      --row-key "$rk" \
-      2>/dev/null
-
-    echo "    Deleted: $pk / $rk"
-  done
-
-  echo "  ✓ $table_name cleaned ($count entities removed)"
-}
-
-delete_all_entities "$WORKERS_TABLE"
 echo ""
-delete_all_entities "$AVAILABILITY_TABLE"
+
+# --- Clean availability container (partition key /windowStart, 30-day TTL) ---
+echo "--- Cleaning container: availability ---"
+echo "  Deleting container..."
+az cosmosdb sql container delete \
+  --account-name "$COSMOS_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --database-name "$DATABASE_NAME" \
+  --name availability \
+  --yes 2>/dev/null || true
+
+echo "  Recreating container..."
+az cosmosdb sql container create \
+  --account-name "$COSMOS_ACCOUNT" \
+  --resource-group "$RESOURCE_GROUP" \
+  --database-name "$DATABASE_NAME" \
+  --name availability \
+  --partition-key-path "/windowStart" \
+  --default-ttl 2592000 > /dev/null
+
+echo "  ✓ availability container recreated"
 
 echo ""
 echo "=== Cleanup Complete ✅ ==="
-echo "Both Workers and Availability tables have been emptied."
+echo "Both workers and availability containers have been recreated."
