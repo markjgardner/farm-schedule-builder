@@ -13,7 +13,7 @@ interface LayoutProps {
 }
 
 export function Layout({ user, isAdmin, isActive, logout }: LayoutProps) {
-  const [activeTab, setActiveTab] = useState<Tab>(isActive ? 'availability' : 'admin');
+  const [activeTab, setActiveTab] = useState<Tab>(!isActive && isAdmin ? 'admin' : 'availability');
 
   return (
     <div className="layout">
