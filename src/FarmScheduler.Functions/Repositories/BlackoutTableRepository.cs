@@ -17,10 +17,13 @@ public class BlackoutTableRepository : IBlackoutRepository
 
     public async Task<IReadOnlyList<BlackoutDate>> GetAllAsync()
     {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var blackouts = new List<BlackoutDate>();
         await foreach (var entity in _tableClient.QueryAsync<TableEntity>(e => e.PartitionKey == PartitionKey))
         {
-            blackouts.Add(MapToBlackout(entity));
+            var blackout = MapToBlackout(entity);
+            if (blackout.Date >= today)
+                blackouts.Add(blackout);
         }
         return blackouts;
     }
@@ -88,5 +91,18 @@ public class BlackoutTableRepository : IBlackoutRepository
             Barn = string.IsNullOrEmpty(barnStr) ? null : Enum.Parse<Barn>(barnStr),
             Shift = string.IsNullOrEmpty(shiftStr) ? null : Enum.Parse<ShiftTime>(shiftStr)
         };
+    }
+
+    public async Task DeleteExpiredAsync(DateOnly before)
+    {
+        var cutoff = before.ToString("yyyy-MM-dd");
+        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(e => e.PartitionKey == PartitionKey))
+        {
+            var dateStr = entity.GetString("Date") ?? entity.RowKey;
+            if (string.Compare(dateStr, cutoff, StringComparison.Ordinal) < 0)
+            {
+                await _tableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey);
+            }
+        }
     }
 }

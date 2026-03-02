@@ -81,4 +81,14 @@ public class AvailabilityTableRepository : IAvailabilityRepository
         Date = DateOnly.Parse(entity.GetString("Date") ?? "2000-01-01"),
         Status = Enum.Parse<AvailabilityStatus>(entity.GetString("Status") ?? "Available")
     };
+
+    public async Task DeleteExpiredAsync(DateOnly before)
+    {
+        var cutoff = before.ToString("yyyy-MM-dd");
+        await foreach (var entity in _tableClient.QueryAsync<TableEntity>(
+            e => e.PartitionKey.CompareTo(cutoff) < 0))
+        {
+            await _tableClient.DeleteEntityAsync(entity.PartitionKey, entity.RowKey);
+        }
+    }
 }
