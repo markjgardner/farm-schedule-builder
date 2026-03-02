@@ -1,35 +1,78 @@
 #!/usr/bin/env bash
 # seed-test-data.sh
 #
-# Populates the farm scheduling app with realistic test data:
+# Populates the farm scheduling app with realistic test data via the
+# Cosmos DB REST API:
 #   - 6 workers (2 full-time, 2 part-time, 2 with mixed schedules)
 #   - Availability for 2 scheduling windows (4 weeks of data)
 #
 # Prerequisites:
 #   - Azure CLI logged in (az login)
-#   - jq installed
+#   - openssl, base64, xxd
 #
 # Usage:
 #   chmod +x scripts/seed-test-data.sh
-#   ./scripts/seed-test-data.sh <storage-account-name>
+#   ./scripts/seed-test-data.sh <cosmos-account-name> <resource-group-name>
 #
 # Example:
-#   ./scripts/seed-test-data.sh stfarmdevw7mddf36mvnxm
+#   ./scripts/seed-test-data.sh cosmos-farmdev-w7m rg-farmdev
 
 set -euo pipefail
 
-STORAGE_ACCOUNT="${1:?Usage: $0 <storage-account-name>}"
-WORKERS_TABLE="Workers"
-AVAILABILITY_TABLE="Availability"
+COSMOS_ACCOUNT="${1:?Usage: $0 <cosmos-account-name> <resource-group-name>}"
+RESOURCE_GROUP="${2:?Usage: $0 <cosmos-account-name> <resource-group-name>}"
+DATABASE="FarmScheduler"
+WORKERS_CONTAINER="workers"
+AVAILABILITY_CONTAINER="availability"
 
 echo "=== Farm Scheduler Test Data Seeder ==="
-echo "Storage account: $STORAGE_ACCOUNT"
+echo "Cosmos account: $COSMOS_ACCOUNT"
+echo "Resource group: $RESOURCE_GROUP"
 echo ""
 
-# Ensure tables exist
-echo "Ensuring tables exist..."
-az storage table create --name "$WORKERS_TABLE" --account-name "$STORAGE_ACCOUNT" --auth-mode login 2>/dev/null || true
-az storage table create --name "$AVAILABILITY_TABLE" --account-name "$STORAGE_ACCOUNT" --auth-mode login 2>/dev/null || true
+# Fetch Cosmos DB endpoint and primary key
+echo "Fetching Cosmos DB credentials..."
+COSMOS_ENDPOINT=$(az cosmosdb show --name "$COSMOS_ACCOUNT" --resource-group "$RESOURCE_GROUP" --query documentEndpoint -o tsv)
+COSMOS_KEY=$(az cosmosdb keys list --name "$COSMOS_ACCOUNT" --resource-group "$RESOURCE_GROUP" --query primaryMasterKey -o tsv)
+echo "  Endpoint: $COSMOS_ENDPOINT"
+
+# Generate HMAC-SHA256 authorization header for the Cosmos DB REST API
+cosmos_auth_header() {
+  local verb="${1,,}" resource_type="${2,,}" resource_id="$3" date="${4,,}"
+  local key_hex
+  key_hex=$(echo -n "$COSMOS_KEY" | base64 -d | xxd -p -c 256)
+  local payload
+  payload=$(printf '%s\n%s\n%s\n%s\n\n' "$verb" "$resource_type" "$resource_id" "$date")
+  local sig
+  sig=$(printf '%s' "$payload" | openssl dgst -sha256 -mac HMAC -macopt "hexkey:${key_hex}" -binary | base64 -w 0)
+  local token="type=master&ver=1.0&sig=${sig}"
+  printf '%s' "$token" | sed 's/=/%3D/g; s/&/%26/g; s/+/%2B/g; s/\//%2F/g'
+}
+
+# Upsert a JSON document into a Cosmos DB container
+upsert_document() {
+  local container="$1" partition_key_value="$2" json_body="$3"
+  local resource_id="dbs/${DATABASE}/colls/${container}"
+  local url="${COSMOS_ENDPOINT}dbs/${DATABASE}/colls/${container}/docs"
+  local ms_date
+  ms_date=$(date -u "+%a, %d %b %Y %H:%M:%S GMT")
+  local auth
+  auth=$(cosmos_auth_header "POST" "docs" "$resource_id" "$ms_date")
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "$url" \
+    -H "Authorization: ${auth}" \
+    -H "x-ms-date: ${ms_date}" \
+    -H "x-ms-version: 2018-12-31" \
+    -H "x-ms-documentdb-is-upsert: True" \
+    -H "x-ms-documentdb-partitionkey: [\"${partition_key_value}\"]" \
+    -H "Content-Type: application/json" \
+    -d "$json_body")
+  if [[ "$http_code" -lt 200 || "$http_code" -ge 300 ]]; then
+    echo "    ✗ Upsert failed (HTTP $http_code) for $container" >&2
+    return 1
+  fi
+}
 
 # --- Workers ---
 echo ""
@@ -65,19 +108,8 @@ declare -A WORKER_ADMIN=(
 
 for id in alice-morgan bob-chen charlie-davis diana-patel evan-santos fiona-kelly; do
   echo "  Creating worker: ${WORKER_NAMES[$id]} ($id)"
-  az storage entity insert \
-    --table-name "$WORKERS_TABLE" \
-    --account-name "$STORAGE_ACCOUNT" \
-    --auth-mode login \
-    --if-exists replace \
-    --entity \
-      PartitionKey=worker \
-      RowKey="$id" \
-      DisplayName="${WORKER_NAMES[$id]}" \
-      Email="${WORKER_EMAILS[$id]}" \
-      IsActive=true@odata.type=Edm.Boolean \
-      IsAdmin="${WORKER_ADMIN[$id]}"@odata.type=Edm.Boolean \
-    2>/dev/null
+  upsert_document "$WORKERS_CONTAINER" "$id" \
+    "{\"id\":\"${id}\",\"displayName\":\"${WORKER_NAMES[$id]}\",\"email\":\"${WORKER_EMAILS[$id]}\",\"isActive\":true,\"isAdmin\":${WORKER_ADMIN[$id]}}"
 done
 echo "  ✓ 6 workers created"
 
@@ -108,18 +140,8 @@ insert_availability() {
   local date="$3"
   local status="$4"
 
-  az storage entity insert \
-    --table-name "$AVAILABILITY_TABLE" \
-    --account-name "$STORAGE_ACCOUNT" \
-    --auth-mode login \
-    --if-exists replace \
-    --entity \
-      PartitionKey="$window_start" \
-      RowKey="${worker_id}_${date}" \
-      WorkerId="$worker_id" \
-      Date="$date" \
-      Status="$status" \
-    2>/dev/null
+  upsert_document "$AVAILABILITY_CONTAINER" "$window_start" \
+    "{\"id\":\"${worker_id}_${date}\",\"windowStart\":\"${window_start}\",\"workerId\":\"${worker_id}\",\"date\":\"${date}\",\"status\":\"${status}\"}"
 }
 
 generate_dates() {

@@ -4,61 +4,126 @@
 
 .DESCRIPTION
   Creates 6 workers and 2 scheduling windows (4 weeks) of availability data
-  directly in Azure Table Storage.
+  directly in Cosmos DB via the REST API.
 
-.PARAMETER StorageAccountName
-  The Azure Storage Account name (e.g., stfarmdevw7mddf36mvnxm)
+.PARAMETER CosmosAccountName
+  The Cosmos DB account name (e.g., cosmos-farm-dev-w7mddf36mvnxm)
+
+.PARAMETER ResourceGroupName
+  The Azure resource group containing the Cosmos DB account
 
 .EXAMPLE
-  .\scripts\Seed-TestData.ps1 -StorageAccountName stfarmdevw7mddf36mvnxm
+  .\scripts\Seed-TestData.ps1 -CosmosAccountName cosmos-farm-dev-w7mddf36mvnxm -ResourceGroupName rg-farm-dev
 #>
 param(
     [Parameter(Mandatory=$true)]
-    [string]$StorageAccountName
+    [string]$CosmosAccountName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$ResourceGroupName
 )
 
 $ErrorActionPreference = "Stop"
 
-$WorkersTable = "Workers"
-$AvailabilityTable = "Availability"
+$DatabaseName = "FarmScheduler"
+$WorkersContainer = "workers"
+$AvailabilityContainer = "availability"
 
 Write-Host "=== Farm Scheduler Test Data Seeder ===" -ForegroundColor Cyan
-Write-Host "Storage account: $StorageAccountName"
+Write-Host "Cosmos DB account: $CosmosAccountName"
+Write-Host "Resource group:    $ResourceGroupName"
 Write-Host ""
 
-# Ensure tables exist
-Write-Host "Ensuring tables exist..."
-az storage table create --name $WorkersTable --account-name $StorageAccountName --auth-mode login 2>$null | Out-Null
-az storage table create --name $AvailabilityTable --account-name $StorageAccountName --auth-mode login 2>$null | Out-Null
+# --- Retrieve Cosmos DB endpoint and key ---
+Write-Host "Retrieving Cosmos DB connection info..."
+$CosmosEndpoint = az cosmosdb show --name $CosmosAccountName --resource-group $ResourceGroupName --query documentEndpoint -o tsv
+if (-not $CosmosEndpoint) { throw "Failed to retrieve Cosmos DB endpoint." }
+
+$CosmosKey = az cosmosdb keys list --name $CosmosAccountName --resource-group $ResourceGroupName --query primaryMasterKey -o tsv
+if (-not $CosmosKey) { throw "Failed to retrieve Cosmos DB primary key." }
+
+Write-Host "  Endpoint: $CosmosEndpoint"
+Write-Host ""
+
+# --- Helper: Generate Cosmos DB REST API authorization header ---
+function Get-CosmosAuthHeader {
+    param(
+        [string]$Verb,
+        [string]$ResourceType,
+        [string]$ResourceId,
+        [string]$Date,
+        [string]$Key
+    )
+
+    $keyBytes = [System.Convert]::FromBase64String($Key)
+    $hmac = New-Object System.Security.Cryptography.HMACSHA256
+    $hmac.Key = $keyBytes
+
+    $stringToSign = "$($Verb.ToLower())`n$($ResourceType.ToLower())`n$ResourceId`n$($Date.ToLower())`n`n"
+    $signatureBytes = $hmac.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($stringToSign))
+    $signature = [System.Convert]::ToBase64String($signatureBytes)
+
+    $authToken = "type=master&ver=1.0&sig=$signature"
+    return [System.Uri]::EscapeDataString($authToken)
+}
+
+# --- Helper: Upsert a document into a Cosmos DB container ---
+function Upsert-CosmosDocument {
+    param(
+        [string]$ContainerName,
+        [string]$PartitionKeyValue,
+        [hashtable]$Document
+    )
+
+    $resourceId = "dbs/$DatabaseName/colls/$ContainerName"
+    $url = "${CosmosEndpoint}dbs/$DatabaseName/colls/$ContainerName/docs"
+    $date = [DateTime]::UtcNow.ToString("R")
+
+    $authHeader = Get-CosmosAuthHeader `
+        -Verb "post" `
+        -ResourceType "docs" `
+        -ResourceId $resourceId `
+        -Date $date `
+        -Key $CosmosKey
+
+    $headers = @{
+        "Authorization"                    = $authHeader
+        "x-ms-date"                        = $date
+        "x-ms-version"                     = "2018-12-31"
+        "x-ms-documentdb-is-upsert"        = "True"
+        "x-ms-documentdb-partitionkey"     = "[`"$PartitionKeyValue`"]"
+    }
+
+    $body = $Document | ConvertTo-Json -Depth 10
+
+    Invoke-RestMethod -Uri $url -Method Post -Headers $headers -ContentType "application/json" -Body $body | Out-Null
+}
 
 # --- Workers ---
 Write-Host ""
 Write-Host "--- Creating Workers ---" -ForegroundColor Yellow
 
 $Workers = @(
-    @{ Id="alice-morgan";   Name="Alice Morgan";   Email="alice@example.com";   Admin="true"  }
-    @{ Id="bob-chen";       Name="Bob Chen";       Email="bob@example.com";     Admin="true"  }
-    @{ Id="charlie-davis";  Name="Charlie Davis";  Email="charlie@example.com"; Admin="false" }
-    @{ Id="diana-patel";    Name="Diana Patel";    Email="diana@example.com";   Admin="false" }
-    @{ Id="evan-santos";    Name="Evan Santos";    Email="evan@example.com";    Admin="false" }
-    @{ Id="fiona-kelly";    Name="Fiona Kelly";    Email="fiona@example.com";   Admin="false" }
+    @{ Id="alice-morgan";   Name="Alice Morgan";   Email="alice@example.com";   Admin=$true  }
+    @{ Id="bob-chen";       Name="Bob Chen";       Email="bob@example.com";     Admin=$true  }
+    @{ Id="charlie-davis";  Name="Charlie Davis";  Email="charlie@example.com"; Admin=$false }
+    @{ Id="diana-patel";    Name="Diana Patel";    Email="diana@example.com";   Admin=$false }
+    @{ Id="evan-santos";    Name="Evan Santos";    Email="evan@example.com";    Admin=$false }
+    @{ Id="fiona-kelly";    Name="Fiona Kelly";    Email="fiona@example.com";   Admin=$false }
 )
 
 foreach ($w in $Workers) {
     Write-Host "  Creating worker: $($w.Name) ($($w.Id))"
-    az storage entity insert `
-        --table-name $WorkersTable `
-        --account-name $StorageAccountName `
-        --auth-mode login `
-        --if-exists replace `
-        --entity `
-            "PartitionKey=worker" `
-            "RowKey=$($w.Id)" `
-            "DisplayName=$($w.Name)" `
-            "Email=$($w.Email)" `
-            "IsActive=true" "IsActive@odata.type=Edm.Boolean" `
-            "IsAdmin=$($w.Admin)" "IsAdmin@odata.type=Edm.Boolean" `
-        2>$null | Out-Null
+    Upsert-CosmosDocument `
+        -ContainerName $WorkersContainer `
+        -PartitionKeyValue $w.Id `
+        -Document @{
+            id          = $w.Id
+            displayName = $w.Name
+            email       = $w.Email
+            isActive    = $true
+            isAdmin     = $w.Admin
+        }
 }
 Write-Host "  $(([char]0x2713)) 6 workers created" -ForegroundColor Green
 
@@ -83,20 +148,18 @@ function Insert-Availability {
 
     $ws = $WindowStart.ToString('yyyy-MM-dd')
     $ds = $Date.ToString('yyyy-MM-dd')
-    $rk = "${WorkerId}_${ds}"
+    $docId = "${WorkerId}_${ds}"
 
-    az storage entity insert `
-        --table-name $AvailabilityTable `
-        --account-name $StorageAccountName `
-        --auth-mode login `
-        --if-exists replace `
-        --entity `
-            PartitionKey=$ws `
-            RowKey=$rk `
-            WorkerId=$WorkerId `
-            Date=$ds `
-            Status=$Status `
-        2>$null | Out-Null
+    Upsert-CosmosDocument `
+        -ContainerName $AvailabilityContainer `
+        -PartitionKeyValue $ws `
+        -Document @{
+            id          = $docId
+            windowStart = $ws
+            workerId    = $WorkerId
+            date        = $ds
+            status      = $Status
+        }
 }
 
 function Seed-Window {
