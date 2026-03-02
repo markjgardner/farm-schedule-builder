@@ -16,17 +16,25 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration)
     {
         // Cosmos DB
+        var cosmosOptions = new CosmosClientOptions
+        {
+            SerializerOptions = new CosmosSerializationOptions
+            {
+                PropertyNamingPolicy = CosmosPropertyNamingPolicy.CamelCase
+            }
+        };
+
         var cosmosConnection = configuration["CosmosDbConnectionString"];
         if (!string.IsNullOrEmpty(cosmosConnection))
         {
-            services.AddSingleton(new CosmosClient(cosmosConnection));
+            services.AddSingleton(new CosmosClient(cosmosConnection, cosmosOptions));
         }
         else
         {
             var cosmosEndpoint = configuration["CosmosDbEndpoint"];
             if (!string.IsNullOrEmpty(cosmosEndpoint))
             {
-                services.AddSingleton(new CosmosClient(cosmosEndpoint, new DefaultAzureCredential()));
+                services.AddSingleton(new CosmosClient(cosmosEndpoint, new DefaultAzureCredential(), cosmosOptions));
             }
         }
 

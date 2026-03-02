@@ -102,22 +102,11 @@ public class BlackoutCosmosRepository : IBlackoutRepository
 
     private class BlackoutDocument
     {
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("date")]
         public string Date { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("barn")]
         public string Barn { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("shift")]
         public string Shift { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("ttl")]
         public int Ttl { get; set; }
     }
 }
