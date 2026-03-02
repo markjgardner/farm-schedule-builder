@@ -53,12 +53,17 @@ public class ScheduleGeneratorFunctionTests
             logger.Object);
     }
 
-    private static HttpRequest CreateAdminRequest(string userId = "admin-1")
+    private static HttpRequest CreateAdminRequest(string userId = "admin-1", string? body = null)
     {
         var context = new DefaultHttpContext();
         var json = JsonSerializer.Serialize(new { userId, userDetails = "Admin User" });
         var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         context.Request.Headers["x-ms-client-principal"] = base64;
+        if (body != null)
+        {
+            context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes(body));
+            context.Request.ContentType = "application/json";
+        }
         return context.Request;
     }
 
@@ -179,5 +184,31 @@ public class ScheduleGeneratorFunctionTests
 
         _mockServiceBusClient.Verify(x => x.CreateSender("schedule-generated"), Times.Once);
         _mockSender.Verify(x => x.SendMessageAsync(It.IsAny<ServiceBusMessage>(), default), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunHttp_UsesProvidedWindowStart()
+    {
+        var adminWorker = new Worker { Id = "admin-1", DisplayName = "Admin", IsActive = true, IsAdmin = true };
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("admin-1")).ReturnsAsync(adminWorker);
+        SetupScheduleGeneration();
+
+        var req = CreateAdminRequest(body: "{\"windowStart\":\"2025-06-02\"}");
+        var result = await _function.RunHttp(req);
+
+        result.Should().BeOfType<OkObjectResult>();
+        _mockAvailabilityService.Verify(x => x.GetAvailabilityAsync("2025-06-02", null), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunHttp_ReturnsBadRequest_WhenWindowStartInvalid()
+    {
+        var adminWorker = new Worker { Id = "admin-1", DisplayName = "Admin", IsActive = true, IsAdmin = true };
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("admin-1")).ReturnsAsync(adminWorker);
+
+        var req = CreateAdminRequest(body: "{\"windowStart\":\"not-a-date\"}");
+        var result = await _function.RunHttp(req);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 }

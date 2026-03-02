@@ -97,9 +97,10 @@ export function deleteWorker(id: string): Promise<void> {
   });
 }
 
-export function triggerScheduleGeneration(): Promise<Schedule> {
+export function triggerScheduleGeneration(windowStart?: string): Promise<Schedule> {
   return apiFetch<Schedule>('/api/manage/schedule/generate', {
     method: 'POST',
+    body: windowStart ? JSON.stringify({ windowStart }) : undefined,
   });
 }
 

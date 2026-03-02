@@ -165,15 +165,30 @@ describe('AdminPage', () => {
     expect(await screen.findByText('Failed to load data')).toBeInTheDocument();
   });
 
-  it('triggers schedule generation', async () => {
+  it('renders scheduling period dropdown', async () => {
+    render(<AdminPage />);
+    await screen.findByText('Alice');
+
+    // The schedule section has a select with date range options
+    const selects = screen.getAllByRole('combobox');
+    // First select is the schedule window, then barn and shift selects for blackouts
+    const scheduleSelect = selects[0];
+    expect(scheduleSelect).toBeInTheDocument();
+    const options = scheduleSelect.querySelectorAll('option');
+    expect(options.length).toBe(4);
+    // Each option should contain a date range like "YYYY-MM-DD to YYYY-MM-DD"
+    expect(options[0].textContent).toMatch(/\d{4}-\d{2}-\d{2} to \d{4}-\d{2}-\d{2}/);
+  });
+
+  it('triggers schedule generation with selected window', async () => {
     const user = userEvent.setup();
     render(<AdminPage />);
     await screen.findByText('Alice');
 
-    await user.click(screen.getByText('Generate Schedule Now'));
+    await user.click(screen.getByText('Generate Schedule'));
 
     await waitFor(() => {
-      expect(mockTriggerScheduleGeneration).toHaveBeenCalled();
+      expect(mockTriggerScheduleGeneration).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
     });
     expect(await screen.findByText('Schedule generated and published successfully')).toBeInTheDocument();
   });
@@ -184,7 +199,7 @@ describe('AdminPage', () => {
     render(<AdminPage />);
     await screen.findByText('Alice');
 
-    await user.click(screen.getByText('Generate Schedule Now'));
+    await user.click(screen.getByText('Generate Schedule'));
 
     expect(await screen.findByText('Failed to generate schedule')).toBeInTheDocument();
   });
