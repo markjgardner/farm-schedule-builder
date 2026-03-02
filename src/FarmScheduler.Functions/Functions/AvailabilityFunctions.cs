@@ -63,6 +63,10 @@ public class AvailabilityFunctions
         if (string.IsNullOrEmpty(principal.UserId))
             return new UnauthorizedResult();
 
+        var worker = await _workerRepository.GetByIdAsync(principal.UserId);
+        if (worker == null || !worker.IsActive)
+            return new ObjectResult("Inactive workers cannot set availability.") { StatusCode = 403 };
+
         var items = await JsonSerializer.DeserializeAsync<List<Availability>>(req.Body, JsonOptions);
         if (items == null || items.Count == 0)
             return new BadRequestObjectResult("Request body must be a non-empty array of availability entries.");

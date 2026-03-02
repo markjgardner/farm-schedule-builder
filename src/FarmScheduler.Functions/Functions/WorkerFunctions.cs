@@ -35,7 +35,7 @@ public class WorkerFunctions
             return new UnauthorizedResult();
 
         var worker = await _workerRepository.GetByIdAsync(principal.UserId);
-        if (worker == null || !worker.IsActive)
+        if (worker == null || (!worker.IsActive && !worker.IsAdmin))
         {
             _logger.LogWarning("Unregistered user attempted access: {UserId} ({UserDetails})",
                 principal.UserId, principal.UserDetails);

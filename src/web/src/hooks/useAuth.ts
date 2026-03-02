@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isAdmin: boolean;
+  isActive: boolean;
   isRegistered: boolean;
   login: (provider: string) => void;
   logout: () => void;
@@ -16,6 +17,7 @@ export function useAuth(): AuthState {
   const [user, setUser] = useState<ClientPrincipal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export function useAuth(): AuthState {
             if (worker) {
               setIsRegistered(true);
               setIsAdmin(worker.isAdmin);
+              setIsActive(worker.isActive);
             } else {
               setIsRegistered(false);
             }
@@ -59,6 +62,7 @@ export function useAuth(): AuthState {
     isAuthenticated: user !== null,
     isLoading,
     isAdmin,
+    isActive,
     isRegistered,
     login,
     logout,

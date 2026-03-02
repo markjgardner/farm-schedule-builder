@@ -91,13 +91,28 @@ public class WorkerFunctionsTests
     [Fact]
     public async Task GetMe_Returns403_WhenWorkerIsInactive()
     {
-        var worker = new Worker { Id = "user-456", DisplayName = "Inactive", IsActive = false };
+        var worker = new Worker { Id = "user-456", DisplayName = "Inactive", IsActive = false, IsAdmin = false };
         _mockRepo.Setup(x => x.GetByIdAsync("user-456")).ReturnsAsync(worker);
         var req = CreateRequest(userId: "user-456", userDetails: "Inactive User");
         var result = await _functions.GetMe(req);
 
         var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
         objectResult.StatusCode.Should().Be(403);
+    }
+
+    [Fact]
+    public async Task GetMe_ReturnsWorker_WhenInactiveAdmin()
+    {
+        var worker = new Worker { Id = "admin-2", DisplayName = "Inactive Admin", IsActive = false, IsAdmin = true };
+        _mockRepo.Setup(x => x.GetByIdAsync("admin-2")).ReturnsAsync(worker);
+        var req = CreateRequest(userId: "admin-2", userDetails: "Inactive Admin");
+        var result = await _functions.GetMe(req);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var returned = okResult.Value.Should().BeOfType<Worker>().Subject;
+        returned.Id.Should().Be("admin-2");
+        returned.IsAdmin.Should().BeTrue();
+        returned.IsActive.Should().BeFalse();
     }
 
     [Fact]
