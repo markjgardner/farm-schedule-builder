@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BarnConfig, BlackoutDate, Worker } from '../types';
 import { Barn, ShiftTime } from '../types';
 import {
@@ -27,6 +27,36 @@ export function AdminPage() {
   const [newEmail, setNewEmail] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedWindow, setSelectedWindow] = useState('');
+
+  const scheduleWindows = useMemo(() => {
+    const today = new Date();
+    const dayOfWeek = today.getUTCDay(); // 0=Sun, 1=Mon...6=Sat
+    let daysUntilMonday = (8 - dayOfWeek) % 7;
+    if (daysUntilMonday === 0) daysUntilMonday = 7;
+
+    const windows: { label: string; value: string }[] = [];
+    for (let i = 0; i < 4; i++) {
+      const start = new Date(today);
+      start.setUTCDate(today.getUTCDate() + daysUntilMonday + (i * 14));
+      const end = new Date(start);
+      end.setUTCDate(start.getUTCDate() + 13);
+
+      const startStr = start.toISOString().split('T')[0];
+      const endStr = end.toISOString().split('T')[0];
+      windows.push({
+        label: `${startStr} to ${endStr}`,
+        value: startStr,
+      });
+    }
+    return windows;
+  }, []);
+
+  useEffect(() => {
+    if (scheduleWindows.length > 0 && !selectedWindow) {
+      setSelectedWindow(scheduleWindows[0].value);
+    }
+  }, [scheduleWindows, selectedWindow]);
 
   // Blackout form state
   const [newBlackoutDate, setNewBlackoutDate] = useState('');
@@ -113,7 +143,7 @@ export function AdminPage() {
   const handleGenerateSchedule = async () => {
     setIsGenerating(true);
     try {
-      await triggerScheduleGeneration();
+      await triggerScheduleGeneration(selectedWindow || undefined);
       showMessage('success', 'Schedule generated and published successfully');
     } catch {
       showMessage('error', 'Failed to generate schedule');
@@ -198,12 +228,24 @@ export function AdminPage() {
       </form>
 
       <div className="admin-schedule-section">
+        <select
+          className="admin-input"
+          value={selectedWindow}
+          onChange={(e) => setSelectedWindow(e.target.value)}
+          disabled={isGenerating}
+        >
+          {scheduleWindows.map((w) => (
+            <option key={w.value} value={w.value}>
+              {w.label}
+            </option>
+          ))}
+        </select>
         <button
           className="admin-btn admin-btn-generate"
           onClick={handleGenerateSchedule}
           disabled={isGenerating}
         >
-          {isGenerating ? 'Generating...' : 'Generate Schedule Now'}
+          {isGenerating ? 'Generating...' : 'Generate Schedule'}
         </button>
       </div>
 

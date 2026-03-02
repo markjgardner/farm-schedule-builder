@@ -64,18 +64,49 @@ public class ScheduleGeneratorFunction
             return new ObjectResult("Forbidden") { StatusCode = 403 };
 
         _logger.LogInformation("Schedule generation manually triggered by admin {AdminId}", principal.UserId);
-        var schedule = await GenerateAndPublishScheduleAsync();
+
+        DateOnly? requestedWindowStart = null;
+        try
+        {
+            using var reader = new StreamReader(req.Body);
+            var body = await reader.ReadToEndAsync();
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.TryGetProperty("windowStart", out var ws))
+                {
+                    requestedWindowStart = DateOnly.ParseExact(ws.GetString()!, "yyyy-MM-dd");
+                }
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException)
+        {
+            return new BadRequestObjectResult("Invalid windowStart format. Expected yyyy-MM-dd.");
+        }
+
+        var schedule = await GenerateAndPublishScheduleAsync(requestedWindowStart);
         return new OkObjectResult(schedule);
     }
 
-    internal async Task<object> GenerateAndPublishScheduleAsync()
+    internal async Task<object> GenerateAndPublishScheduleAsync(DateOnly? requestedWindowStart = null)
     {
-        // Compute next 2-week scheduling window (next Monday through Sunday +2 weeks)
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var daysUntilMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
-        if (daysUntilMonday == 0) daysUntilMonday = 7;
-        var windowStart = today.AddDays(daysUntilMonday);
-        var windowEnd = windowStart.AddDays(13); // 2 weeks = 14 days, inclusive
+        DateOnly windowStart;
+        DateOnly windowEnd;
+
+        if (requestedWindowStart.HasValue)
+        {
+            windowStart = requestedWindowStart.Value;
+            windowEnd = windowStart.AddDays(13);
+        }
+        else
+        {
+            // Compute next 2-week scheduling window (next Monday through Sunday +2 weeks)
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var daysUntilMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
+            if (daysUntilMonday == 0) daysUntilMonday = 7;
+            windowStart = today.AddDays(daysUntilMonday);
+            windowEnd = windowStart.AddDays(13); // 2 weeks = 14 days, inclusive
+        }
 
         var windowStartStr = windowStart.ToString("yyyy-MM-dd");
 
