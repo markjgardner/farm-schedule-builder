@@ -1,9 +1,9 @@
 using FarmScheduler.Core.Models;
 using FarmScheduler.Functions.Repositories;
 using FarmScheduler.Functions.Services;
-using Azure.Data.Tables;
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,29 +15,18 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Table Storage
-        var storageConnection = configuration["StorageConnectionString"];
-        if (storageConnection == "UseDevelopmentStorage=true" || !string.IsNullOrEmpty(storageConnection))
+        // Cosmos DB
+        var cosmosConnection = configuration["CosmosDbConnectionString"];
+        if (!string.IsNullOrEmpty(cosmosConnection))
         {
-            services.AddSingleton(new TableServiceClient(storageConnection));
+            services.AddSingleton(new CosmosClient(cosmosConnection));
         }
         else
         {
-            // In production the Bicep template sets StorageTableEndpoint to the full
-            // table service URI (e.g. https://<account>.table.core.windows.net/).
-            var storageTableEndpoint = configuration["StorageTableEndpoint"];
-            if (!string.IsNullOrEmpty(storageTableEndpoint))
+            var cosmosEndpoint = configuration["CosmosDbEndpoint"];
+            if (!string.IsNullOrEmpty(cosmosEndpoint))
             {
-                services.AddSingleton(new TableServiceClient(
-                    new Uri(storageTableEndpoint),
-                    new DefaultAzureCredential()));
-            }
-            else
-            {
-                var storageAccountName = configuration["StorageAccountName"];
-                services.AddSingleton(new TableServiceClient(
-                    new Uri($"https://{storageAccountName}.table.core.windows.net"),
-                    new DefaultAzureCredential()));
+                services.AddSingleton(new CosmosClient(cosmosEndpoint, new DefaultAzureCredential()));
             }
         }
 
@@ -49,13 +38,10 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            // In production the Bicep template sets ServiceBus__fullyQualifiedNamespace
-            // which .NET configuration resolves as ServiceBus:fullyQualifiedNamespace.
             var serviceBusNamespace = configuration["ServiceBus:fullyQualifiedNamespace"]
                 ?? configuration["ServiceBusNamespace"];
             if (!string.IsNullOrEmpty(serviceBusNamespace))
             {
-                // The value may already be a FQDN (host.servicebus.windows.net) or just a name.
                 var fqdn = serviceBusNamespace.Contains('.')
                     ? serviceBusNamespace
                     : $"{serviceBusNamespace}.servicebus.windows.net";
@@ -64,10 +50,10 @@ public static class ServiceCollectionExtensions
         }
 
         // Repositories
-        services.AddSingleton<IWorkerRepository, WorkerTableRepository>();
-        services.AddSingleton<IAvailabilityRepository, AvailabilityTableRepository>();
-        services.AddSingleton<IBarnConfigRepository, BarnConfigTableRepository>();
-        services.AddSingleton<IBlackoutRepository, BlackoutTableRepository>();
+        services.AddSingleton<IWorkerRepository, WorkerCosmosRepository>();
+        services.AddSingleton<IAvailabilityRepository, AvailabilityCosmosRepository>();
+        services.AddSingleton<IBarnConfigRepository, BarnConfigCosmosRepository>();
+        services.AddSingleton<IBlackoutRepository, BlackoutCosmosRepository>();
 
         // Services
         services.AddSingleton<ISchedulingService, SchedulingService>();
