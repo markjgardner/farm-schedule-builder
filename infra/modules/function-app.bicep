@@ -25,8 +25,8 @@ param serviceBusEndpoint string
 @description('Key Vault URI for secret references.')
 param keyVaultUri string
 
-@description('Storage Account primary table endpoint.')
-param storageTableEndpoint string
+@description('Cosmos DB account document endpoint.')
+param cosmosEndpoint string
 
 // Flex Consumption hosting plan (FC1 SKU)
 resource hostingPlan 'Microsoft.Web/serverfarms@2024-04-01' = {
@@ -92,8 +92,8 @@ resource functionApp 'Microsoft.Web/sites@2024-04-01' = {
           value: keyVaultUri
         }
         {
-          name: 'StorageTableEndpoint'
-          value: storageTableEndpoint
+          name: 'CosmosDbEndpoint'
+          value: cosmosEndpoint
         }
       ]
     }

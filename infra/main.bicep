@@ -53,11 +53,11 @@ module functionApp 'modules/function-app.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     serviceBusEndpoint: serviceBus.outputs.serviceBusEndpoint
     keyVaultUri: keyVault.outputs.keyVaultUri
-    storageTableEndpoint: storage.outputs.primaryTableEndpoint
+    cosmosEndpoint: cosmos.outputs.cosmosEndpoint
   }
 }
 
-// Storage Account with Tables (initial deployment without RBAC)
+// Storage Account (initial deployment without RBAC)
 module storage 'modules/storage.bicep' = {
   name: 'storage'
   params: {
@@ -80,6 +80,16 @@ module serviceBus 'modules/service-bus.bicep' = {
 // Key Vault (initial deployment without RBAC)
 module keyVault 'modules/key-vault.bicep' = {
   name: 'keyVault'
+  params: {
+    baseName: baseName
+    location: location
+    tags: commonTags
+  }
+}
+
+// Cosmos DB (initial deployment without RBAC)
+module cosmos 'modules/cosmos-db.bicep' = {
+  name: 'cosmos'
   params: {
     baseName: baseName
     location: location
@@ -125,6 +135,17 @@ module keyVaultRbac 'modules/key-vault.bicep' = {
   dependsOn: [keyVault, functionApp]
 }
 
+module cosmosRbac 'modules/cosmos-db.bicep' = {
+  name: 'cosmosRbac'
+  params: {
+    baseName: baseName
+    location: location
+    tags: commonTags
+    functionAppPrincipalId: functionApp.outputs.principalId
+  }
+  dependsOn: [cosmos]
+}
+
 // Static Web App with linked backend to Function App
 module staticWebApp 'modules/static-web-app.bicep' = {
   name: 'staticWebApp'
@@ -152,3 +173,6 @@ output storageAccountName string = storage.outputs.storageAccountName
 
 @description('Service Bus namespace name.')
 output serviceBusNamespaceName string = serviceBus.outputs.serviceBusNamespaceName
+
+@description('Cosmos DB Account name.')
+output cosmosAccountName string = cosmos.outputs.cosmosAccountName
