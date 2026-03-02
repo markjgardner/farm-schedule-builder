@@ -49,7 +49,7 @@ export function Layout({ user, isAdmin, logout }: LayoutProps) {
         )}
       </nav>
       <main className="content">
-        {activeTab === 'availability' && <AvailabilityGrid />}
+        {activeTab === 'availability' && <AvailabilityGrid isAdmin={isAdmin} />}
         {activeTab === 'schedule' && <ScheduleView />}
         {activeTab === 'admin' && isAdmin && <AdminPage />}
       </main>

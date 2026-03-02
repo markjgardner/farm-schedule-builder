@@ -111,6 +111,29 @@ export function triggerScheduleGeneration(): Promise<Schedule> {
   });
 }
 
+export function getWorkerAvailability(
+  windowStart: string,
+  workerId: string,
+): Promise<{ date: string; status: string }[]> {
+  return apiFetch<{ date: string; status: string }[]>(
+    `/api/manage/availability/${encodeURIComponent(windowStart)}/${encodeURIComponent(workerId)}`,
+  );
+}
+
+export function saveWorkerAvailability(
+  windowStart: string,
+  workerId: string,
+  items: { date: string; status: string }[],
+): Promise<void> {
+  return apiFetch(
+    `/api/manage/availability/${encodeURIComponent(windowStart)}/${encodeURIComponent(workerId)}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(items),
+    },
+  );
+}
+
 // --- Barn Config ---
 
 export function getBarnConfigs(): Promise<BarnConfig[]> {
