@@ -58,13 +58,8 @@ public class BarnConfigCosmosRepository : IBarnConfigRepository
 
     private class BarnConfigDocument
     {
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("barn")]
         public string Barn { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("workersPerShift")]
         public int WorkersPerShift { get; set; } = 1;
     }
 }

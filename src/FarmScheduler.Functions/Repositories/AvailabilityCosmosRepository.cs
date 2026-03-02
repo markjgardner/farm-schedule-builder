@@ -88,19 +88,10 @@ public class AvailabilityCosmosRepository : IAvailabilityRepository
 
     private class AvailabilityDocument
     {
-        [System.Text.Json.Serialization.JsonPropertyName("id")]
         public string Id { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("windowStart")]
         public string WindowStart { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("workerId")]
         public string WorkerId { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("date")]
         public string Date { get; set; } = string.Empty;
-
-        [System.Text.Json.Serialization.JsonPropertyName("status")]
         public string Status { get; set; } = string.Empty;
     }
 }
