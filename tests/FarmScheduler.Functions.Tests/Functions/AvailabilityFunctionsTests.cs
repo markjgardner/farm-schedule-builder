@@ -105,32 +105,6 @@ public class AvailabilityFunctionsTests
     }
 
     [Fact]
-    public async Task GetAllAvailability_ReturnsAllWorkersAvailability()
-    {
-        var expected = new List<Availability>
-        {
-            new() { WorkerId = "user-1", Date = new DateOnly(2024, 1, 15), Status = AvailabilityStatus.Available },
-            new() { WorkerId = "user-2", Date = new DateOnly(2024, 1, 15), Status = AvailabilityStatus.MorningOnly }
-        };
-        _mockService.Setup(x => x.GetAvailabilityAsync("2024-01-15", null)).ReturnsAsync(expected);
-
-        var req = CreateRequest(userId: "user-1", userDetails: "Test User");
-        var result = await _functions.GetAllAvailability(req, "2024-01-15");
-
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        okResult.Value.Should().BeEquivalentTo(expected);
-    }
-
-    [Fact]
-    public async Task GetAllAvailability_Returns401_WhenNoAuthHeader()
-    {
-        var req = CreateRequest();
-        var result = await _functions.GetAllAvailability(req, "2024-01-15");
-
-        result.Should().BeOfType<UnauthorizedResult>();
-    }
-
-    [Fact]
     public async Task AdminGetAvailability_Returns401_WhenNoAuth()
     {
         var req = CreateRequest();

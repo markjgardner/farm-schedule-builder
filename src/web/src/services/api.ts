@@ -57,14 +57,6 @@ export function saveAvailability(
   });
 }
 
-export function getCurrentSchedule(
-  windowStart: string,
-): Promise<Schedule | null> {
-  return apiFetch<Schedule | null>(
-    `/api/availability/${encodeURIComponent(windowStart)}/all`,
-  );
-}
-
 export function getWorkers(): Promise<Worker[]> {
   return apiFetch<Worker[]>('/api/workers');
 }

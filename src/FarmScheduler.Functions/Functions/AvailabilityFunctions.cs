@@ -74,19 +74,6 @@ public class AvailabilityFunctions
         return new OkObjectResult(new { saved = items.Count });
     }
 
-    [Function("GetAllAvailability")]
-    public async Task<IActionResult> GetAllAvailability(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "availability/{windowStart}/all")] HttpRequest req,
-        string windowStart)
-    {
-        var principal = AuthHelper.ParseClientPrincipal(req);
-        if (string.IsNullOrEmpty(principal.UserId))
-            return new UnauthorizedResult();
-
-        var availability = await _availabilityService.GetAvailabilityAsync(windowStart);
-        return new OkObjectResult(availability);
-    }
-
     [Function("AdminGetAvailability")]
     public async Task<IActionResult> AdminGetAvailability(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "manage/availability/{windowStart}/{workerId}")] HttpRequest req,
