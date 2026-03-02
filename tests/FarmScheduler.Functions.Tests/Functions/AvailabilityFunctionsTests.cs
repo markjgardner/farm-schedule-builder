@@ -59,8 +59,16 @@ public class AvailabilityFunctionsTests
         var req = CreateRequest(userId: "user-1", userDetails: "Test User");
         var result = await _functions.GetAvailability(req, "2024-01-15");
 
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        okResult.Value.Should().BeEquivalentTo(expected);
+        var contentResult = result.Should().BeOfType<ContentResult>().Subject;
+        contentResult.StatusCode.Should().Be(200);
+        contentResult.ContentType.Should().Be("application/json");
+        var items = System.Text.Json.JsonSerializer.Deserialize<List<Availability>>(contentResult.Content!,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            });
+        items.Should().BeEquivalentTo(expected);
     }
 
     [Fact]
@@ -167,8 +175,16 @@ public class AvailabilityFunctionsTests
         var req = CreateRequest(userId: "admin-1", userDetails: "Admin");
         var result = await _functions.AdminGetAvailability(req, "2024-01-15", "worker-1");
 
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        okResult.Value.Should().BeEquivalentTo(expected);
+        var contentResult = result.Should().BeOfType<ContentResult>().Subject;
+        contentResult.StatusCode.Should().Be(200);
+        contentResult.ContentType.Should().Be("application/json");
+        var items = System.Text.Json.JsonSerializer.Deserialize<List<Availability>>(contentResult.Content!,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+                Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+            });
+        items.Should().BeEquivalentTo(expected);
     }
 
     [Fact]

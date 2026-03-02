@@ -51,7 +51,12 @@ public class AvailabilityFunctions
             return new UnauthorizedResult();
 
         var availability = await _availabilityService.GetAvailabilityAsync(windowStart, principal.UserId);
-        return new OkObjectResult(availability);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(availability, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     [Function("PutAvailability")]
@@ -88,7 +93,12 @@ public class AvailabilityFunctions
         if (error != null) return error;
 
         var availability = await _availabilityService.GetAvailabilityAsync(windowStart, workerId);
-        return new OkObjectResult(availability);
+        return new ContentResult
+        {
+            Content = JsonSerializer.Serialize(availability, JsonOptions),
+            ContentType = "application/json",
+            StatusCode = 200
+        };
     }
 
     [Function("AdminPutAvailability")]
