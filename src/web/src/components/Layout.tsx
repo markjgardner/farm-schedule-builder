@@ -2,9 +2,8 @@ import { useState } from 'react';
 import type { ClientPrincipal } from '../types';
 import { AdminPage } from './AdminPage';
 import { AvailabilityGrid } from './AvailabilityGrid';
-import { ScheduleView } from './ScheduleView';
 
-type Tab = 'availability' | 'schedule' | 'admin';
+type Tab = 'availability' | 'admin';
 
 interface LayoutProps {
   user: ClientPrincipal;
@@ -33,12 +32,6 @@ export function Layout({ user, isAdmin, logout }: LayoutProps) {
         >
           My Availability
         </button>
-        <button
-          className={`tab-btn ${activeTab === 'schedule' ? 'active' : ''}`}
-          onClick={() => setActiveTab('schedule')}
-        >
-          Current Schedule
-        </button>
         {isAdmin && (
           <button
             className={`tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
@@ -50,7 +43,6 @@ export function Layout({ user, isAdmin, logout }: LayoutProps) {
       </nav>
       <main className="content">
         {activeTab === 'availability' && <AvailabilityGrid isAdmin={isAdmin} />}
-        {activeTab === 'schedule' && <ScheduleView />}
         {activeTab === 'admin' && isAdmin && <AdminPage />}
       </main>
     </div>
