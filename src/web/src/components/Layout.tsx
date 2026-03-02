@@ -8,11 +8,12 @@ type Tab = 'availability' | 'admin';
 interface LayoutProps {
   user: ClientPrincipal;
   isAdmin: boolean;
+  isActive: boolean;
   logout: () => void;
 }
 
-export function Layout({ user, isAdmin, logout }: LayoutProps) {
-  const [activeTab, setActiveTab] = useState<Tab>('availability');
+export function Layout({ user, isAdmin, isActive, logout }: LayoutProps) {
+  const [activeTab, setActiveTab] = useState<Tab>(!isActive && isAdmin ? 'admin' : 'availability');
 
   return (
     <div className="layout">
@@ -26,12 +27,14 @@ export function Layout({ user, isAdmin, logout }: LayoutProps) {
         </div>
       </header>
       <nav className="tab-nav">
-        <button
-          className={`tab-btn ${activeTab === 'availability' ? 'active' : ''}`}
-          onClick={() => setActiveTab('availability')}
-        >
-          My Availability
-        </button>
+        {isActive && (
+          <button
+            className={`tab-btn ${activeTab === 'availability' ? 'active' : ''}`}
+            onClick={() => setActiveTab('availability')}
+          >
+            My Availability
+          </button>
+        )}
         {isAdmin && (
           <button
             className={`tab-btn ${activeTab === 'admin' ? 'active' : ''}`}

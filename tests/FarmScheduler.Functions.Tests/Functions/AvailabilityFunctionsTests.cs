@@ -75,6 +75,9 @@ public class AvailabilityFunctionsTests
     [Fact]
     public async Task PutAvailability_SavesAvailability()
     {
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("user-1"))
+            .ReturnsAsync(new Worker { Id = "user-1", IsAdmin = false, IsActive = true, DisplayName = "Test User" });
+
         var items = new List<Availability>
         {
             new() { Date = new DateOnly(2024, 1, 15), Status = AvailabilityStatus.Available },
@@ -102,6 +105,30 @@ public class AvailabilityFunctionsTests
         var result = await _functions.PutAvailability(req, "2024-01-15");
 
         result.Should().BeOfType<UnauthorizedResult>();
+    }
+
+    [Fact]
+    public async Task PutAvailability_Returns403_WhenWorkerIsInactive()
+    {
+        _mockWorkerRepo.Setup(x => x.GetByIdAsync("user-1"))
+            .ReturnsAsync(new Worker { Id = "user-1", IsAdmin = false, IsActive = false, DisplayName = "Inactive" });
+
+        var items = new List<Availability>
+        {
+            new() { Date = new DateOnly(2024, 1, 15), Status = AvailabilityStatus.Available }
+        };
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+        };
+        var body = JsonSerializer.Serialize(items, jsonOptions);
+
+        var req = CreateRequest(userId: "user-1", userDetails: "Inactive User", body: body, method: "PUT");
+        var result = await _functions.PutAvailability(req, "2024-01-15");
+
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
     }
 
     [Fact]

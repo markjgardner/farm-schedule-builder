@@ -5,7 +5,7 @@ import { AccessDeniedPage } from './components/AccessDeniedPage'
 import { Layout } from './components/Layout'
 
 function App() {
-  const { user, isAuthenticated, isLoading, isAdmin, isRegistered, login, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, isAdmin, isActive, isRegistered, login, logout } = useAuth()
 
   if (isLoading) {
     return <div className="app-loading">Loading...</div>
@@ -19,7 +19,7 @@ function App() {
     return <AccessDeniedPage userDetails={user.userDetails} logout={logout} />
   }
 
-  return <Layout user={user} isAdmin={isAdmin} logout={logout} />
+  return <Layout user={user} isAdmin={isAdmin} isActive={isActive} logout={logout} />
 }
 
 export default App
