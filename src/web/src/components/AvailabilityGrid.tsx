@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { Worker } from '../types';
 import { AvailabilityStatus } from '../types';
 import { useAvailability } from '../hooks/useAvailability';
+import { getWorkers } from '../services/api';
 
 const STATUS_LABELS: Record<AvailabilityStatus, string> = {
   [AvailabilityStatus.Available]: 'Available',
@@ -18,7 +20,18 @@ function formatDayLabel(dateStr: string): string {
   return `${dayName} ${month}/${day}`;
 }
 
-export function AvailabilityGrid() {
+export function AvailabilityGrid({ isAdmin = false }: { isAdmin?: boolean }) {
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
+
+  useEffect(() => {
+    if (isAdmin) {
+      getWorkers().then(setWorkers).catch(() => {});
+    }
+  }, [isAdmin]);
+
+  const selectedWorkerName = workers.find((w) => w.id === selectedWorkerId)?.displayName;
+
   const {
     availability,
     setDayAvailability,
@@ -29,7 +42,7 @@ export function AvailabilityGrid() {
     windowStart,
     windowEnd,
     dates,
-  } = useAvailability();
+  } = useAvailability(selectedWorkerId || undefined);
 
   const [toast, setToast] = useState<{
     message: string;
@@ -56,7 +69,24 @@ export function AvailabilityGrid() {
 
   return (
     <div className="availability-grid">
-      <h2>My Availability</h2>
+      <h2>{selectedWorkerName ? `${selectedWorkerName}'s Availability` : 'My Availability'}</h2>
+      {isAdmin && workers.length > 0 && (
+        <div className="worker-selector">
+          <label htmlFor="worker-select">View as: </label>
+          <select
+            id="worker-select"
+            value={selectedWorkerId}
+            onChange={(e) => setSelectedWorkerId(e.target.value)}
+          >
+            <option value="">Myself</option>
+            {workers.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       <p className="window-label">
         {windowStart} to {windowEnd}
       </p>

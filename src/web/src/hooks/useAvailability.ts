@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AvailabilityStatus } from '../types';
-import { getAvailability, saveAvailability } from '../services/api';
+import {
+  getAvailability,
+  getWorkerAvailability,
+  saveAvailability,
+  saveWorkerAvailability,
+} from '../services/api';
 
 export function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
@@ -38,7 +43,7 @@ interface UseAvailabilityResult {
   dates: string[];
 }
 
-export function useAvailability(): UseAvailabilityResult {
+export function useAvailability(workerId?: string): UseAvailabilityResult {
   const windowStartDate = useMemo(() => getNextMonday(), []);
   const dates = useMemo(() => buildDates(windowStartDate), [windowStartDate]);
   const windowStart = formatDate(windowStartDate);
@@ -61,7 +66,22 @@ export function useAvailability(): UseAvailabilityResult {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getAvailability(windowStart)
+    // Reset to defaults when workerId changes
+    setAvailability(() => {
+      const init: Record<string, AvailabilityStatus> = {};
+      for (const d of dates) {
+        init[d] = AvailabilityStatus.Available;
+      }
+      return init;
+    });
+    setIsLoading(true);
+    setError(null);
+
+    const fetchFn = workerId
+      ? getWorkerAvailability(windowStart, workerId)
+      : getAvailability(windowStart);
+
+    fetchFn
       .then((items) => {
         if (items.length > 0) {
           setAvailability((prev) => {
@@ -79,7 +99,7 @@ export function useAvailability(): UseAvailabilityResult {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [windowStart]);
+  }, [windowStart, workerId]);
 
   const setDayAvailability = useCallback(
     (date: string, status: AvailabilityStatus) => {
@@ -95,14 +115,18 @@ export function useAvailability(): UseAvailabilityResult {
         date,
         status: availability[date],
       }));
-      await saveAvailability(windowStart, items);
+      if (workerId) {
+        await saveWorkerAvailability(windowStart, workerId, items);
+      } else {
+        await saveAvailability(windowStart, items);
+      }
       return true;
     } catch {
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [dates, availability, windowStart]);
+  }, [dates, availability, windowStart, workerId]);
 
   return {
     availability,
